@@ -98,6 +98,9 @@ async function loadConfig() {
         const cfg = await res.json();
         if (cfg.games && Object.keys(cfg.games).length > 0) {
             handleConfig(cfg);
+        } else if (!cfg.last_scan) {
+            // First launch — no games found and never scanned before: auto-scan
+            doScan();
         }
     } catch (_) {}
 }
