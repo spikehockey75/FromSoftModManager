@@ -21,52 +21,67 @@ echo.
 
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo  +==========================================================+
-    echo  :  Python is NOT installed.                                :
-    echo  :                                                          :
-    echo  :  This app requires Python to run.                        :
-    echo  :                                                          :
-    echo  :  OPTION 1 - Automatic ^(recommended^):                     :
-    echo  :    Press Y to open the Python download page.             :
-    echo  :    Download and run the installer.                       :
-    echo  :                                                          :
-    echo  :    IMPORTANT: Check the box that says                    :
-    echo  :    "Add python.exe to PATH" during install!              :
-    echo  :                                                          :
-    echo  :  OPTION 2 - Microsoft Store:                             :
-    echo  :    Press S to open the Microsoft Store Python page.      :
-    echo  :                                                          :
-    echo  +==========================================================+
+    echo  Python is NOT installed. Attempting to install automatically...
     echo.
-    choice /c YSN /n /m "  Open Python download page (Y), Microsoft Store (S), or cancel (N)? "
-    if errorlevel 3 (
-        echo  Installation cancelled.
+
+    REM Try winget first (built into Windows 10 1709+ and Windows 11)
+    winget --version >nul 2>&1
+    if !errorlevel!==0 (
+        echo  Installing Python via winget...
+        echo.
+        winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+        if !errorlevel! neq 0 (
+            echo.
+            echo  [ERROR] winget install failed. Trying direct download...
+            goto :try_curl
+        )
+        goto :python_installed
+    )
+
+    :try_curl
+    REM Fallback: download the installer with curl (built into Windows 10 1709+)
+    echo  Downloading Python installer...
+    echo.
+    set "PY_INSTALLER=%TEMP%\python-installer.exe"
+    curl -L -o "!PY_INSTALLER!" "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+    if !errorlevel! neq 0 (
+        echo.
+        echo  [ERROR] Could not download Python installer.
+        echo          Please install Python manually from https://www.python.org/downloads/
+        echo          Make sure to check "Add python.exe to PATH" during install.
         pause
         exit /b 1
     )
-    if errorlevel 2 (
-        echo  Opening Microsoft Store...
-        start ms-windows-store://pdp/?productid=9PJPW5LDXLZ5
+
+    echo  Running Python installer silently...
+    echo  This may take a minute...
+    echo.
+    "!PY_INSTALLER!" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+    if !errorlevel! neq 0 (
         echo.
-        echo  After installing Python from the Store, close this window
-        echo  and run install.bat again.
-        echo.
+        echo  [ERROR] Python installer failed.
+        echo          Please install Python manually from https://www.python.org/downloads/
+        echo          Make sure to check "Add python.exe to PATH" during install.
         pause
         exit /b 1
     )
+    del "!PY_INSTALLER!" >nul 2>&1
+
+    :python_installed
+    echo.
+    echo  Python installed successfully. Refreshing environment...
+    echo.
+
+    REM Refresh PATH so we can find python in this session
+    for /f "tokens=2*" %%A in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USER_PATH=%%B"
+    for /f "tokens=2*" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do set "SYS_PATH=%%B"
+    set "PATH=!USER_PATH!;!SYS_PATH!"
+
+    python --version >nul 2>&1
     if errorlevel 1 (
-        echo  Opening Python download page...
-        start https://www.python.org/downloads/
-        echo.
-        echo  +-----------------------------------------------------+
-        echo  :  REMINDER: During Python installation, make sure    :
-        echo  :  to check "Add python.exe to PATH" at the bottom   :
-        echo  :  of the first screen!                               :
-        echo  :                                                     :
-        echo  :  After installing, CLOSE this window and run        :
-        echo  :  install.bat again.                                 :
-        echo  +-----------------------------------------------------+
-        echo.
+        echo  [ERROR] Python was installed but cannot be found in PATH.
+        echo          Please close this window, open a NEW command prompt,
+        echo          and run install.bat again.
         pause
         exit /b 1
     )
