@@ -5,6 +5,7 @@ import re
 import string
 import glob
 import shutil
+import socket
 import subprocess
 import zipfile
 import webbrowser
@@ -1098,8 +1099,27 @@ def open_browser():
     webbrowser.open("http://127.0.0.1:5000")
 
 
+def is_port_in_use(port):
+    """Check if a port is already bound (i.e. the server is already running)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return False
+        except OSError:
+            return True
+
+
 if __name__ == "__main__":
+    port = 5000
+
+    # If the server is already running, just open the browser and exit
+    if is_port_in_use(port):
+        print(f"Server is already running on http://127.0.0.1:{port}")
+        print("Opening browser...")
+        open_browser()
+        sys.exit(0)
+
     # Auto-open browser after a short delay
     threading.Timer(1.2, open_browser).start()
-    print("Starting FromSoft Co-op Settings Manager on http://127.0.0.1:5000")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    print(f"Starting FromSoft Co-op Settings Manager on http://127.0.0.1:{port}")
+    app.run(host="127.0.0.1", port=port, debug=False)
