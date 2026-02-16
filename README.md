@@ -158,6 +158,8 @@ After installation, start the app any of these ways:
 
 Your default web browser opens automatically to `http://127.0.0.1:5000`.
 
+> **No console window!** The desktop shortcut and installer both use a silent launcher — the server runs entirely in the background with no terminal window. Just close the browser tab when you're done.
+
 ---
 
 ## How to Use
@@ -206,7 +208,8 @@ If you install or uninstall a game, click **Scan for Games** again. The tool ver
 ```
 FromSoftSeamlessCoOpManager/
 ├── install.bat          ← One-time setup (double-click first)
-├── run.bat              ← Starts the app (double-click to launch)
+├── launch.vbs           ← Silent launcher (no console window)
+├── run.bat              ← Starts the app (called by launch.vbs)
 ├── server.py            ← Flask backend (scanner, APIs, launcher)
 ├── requirements.txt     ← Dependencies (flask, Pillow)
 ├── config.json          ← Auto-generated after first scan
@@ -256,7 +259,9 @@ Click **Scan for Games** or just refresh the page. The app checks Steam's `appma
 
 ### How do I stop the app?
 
-Close the command prompt window that opened when you launched the app, or press `Ctrl+C` in it.
+The server runs in the background — there's no console window to close. To stop it:
+- **Easiest:** Just close your browser tab. The server uses minimal resources and will be cleaned up when you shut down or log off.
+- **Manual:** Open Task Manager (`Ctrl+Shift+Esc`), find `pythonw.exe` or `python.exe`, and end the task.
 
 ### Can I move the folder?
 
@@ -298,6 +303,7 @@ That's it. Nothing is installed system-wide. The `.venv` virtual environment and
 | **INI Parser** | Custom parser that reads mod comment metadata to infer control types (dropdowns, ranges, booleans) and extract default values |
 | **Game Scanner** | Enumerates all Windows drives → finds Steam's `libraryfolders.vdf` → resolves library paths → checks for known game folders → verifies `appmanifest_<id>.acf` |
 | **Icon Generation** | Downloads Steam CDN cover art → center-crops to square → converts to multi-size `.ico` via Pillow |
+| **Silent Launch** | `launch.vbs` runs `run.bat` with a hidden window via `WScript.Shell`; `run.bat` uses `pythonw` (windowless Python) when available |
 | **Shortcut Creation** | PowerShell `WScript.Shell` COM object with `[Environment]::GetFolderPath('Desktop')` for OneDrive compatibility |
 | **Save Detection** | Scans `%APPDATA%` for game save folders, matches numeric/hex Steam IDs |
 | **Dependencies** | Flask (web framework), Pillow (image processing) — both installed in `.venv` |

@@ -35,10 +35,12 @@ There are **no build steps**. Edit a file, restart the server, refresh the brows
    ```
    run.bat
    ```
-   The app opens at `http://127.0.0.1:5000`. The server auto-runs in a console window.
+   The app opens at `http://127.0.0.1:5000`. When launched via the desktop shortcut or `launch.vbs`, the server runs in the background with no console window.
+
+   > **Tip for development:** Run `run.bat` directly from a terminal so you can see server output and stop it with `Ctrl+C`. The desktop shortcut uses `launch.vbs` which hides the console — not ideal for debugging.
 
 4. **Make changes** — edit files, then:
-   - **Python changes (`server.py`):** Stop the server (`Ctrl+C` in the console) and re-run `run.bat`
+   - **Python changes (`server.py`):** Stop the server (end `pythonw.exe`/`python.exe` in Task Manager, or `Ctrl+C` if running from a terminal) and re-run `run.bat`
    - **JS/CSS/HTML changes:** Hard-refresh the browser (`Ctrl+Shift+R`)
 
 ---
@@ -51,7 +53,8 @@ templates/index.html ← Single HTML template
 static/app.js        ← All frontend logic (dashboard, tabs, forms, API calls)
 static/style.css     ← All styling (dark theme)
 install.bat          ← One-time setup script
-run.bat              ← App launcher
+launch.vbs           ← Silent launcher (runs run.bat with no console window)
+run.bat              ← App launcher (uses pythonw for background execution)
 requirements.txt     ← Python dependencies
 ```
 

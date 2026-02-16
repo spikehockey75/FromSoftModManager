@@ -153,14 +153,16 @@ echo $ws = New-Object -ComObject WScript.Shell > "%PS_SCRIPT%"
 echo $desktop = [Environment]::GetFolderPath('Desktop'^) >> "%PS_SCRIPT%"
 if exist "%ICON_ICO%" (
     echo $s = $ws.CreateShortcut("$desktop\FromSoft Seamless Co-op Manager.lnk"^) >> "%PS_SCRIPT%"
-    echo $s.TargetPath = "%SCRIPT_DIR%run.bat" >> "%PS_SCRIPT%"
+    echo $s.TargetPath = "wscript.exe" >> "%PS_SCRIPT%"
+    echo $s.Arguments = '"%SCRIPT_DIR%launch.vbs"' >> "%PS_SCRIPT%"
     echo $s.WorkingDirectory = "%SCRIPT_DIR%" >> "%PS_SCRIPT%"
     echo $s.IconLocation = "%ICON_ICO%" >> "%PS_SCRIPT%"
     echo $s.Description = "FromSoft Co-op Settings Manager" >> "%PS_SCRIPT%"
     echo $s.Save(^) >> "%PS_SCRIPT%"
 ) else (
     echo $s = $ws.CreateShortcut("$desktop\FromSoft Seamless Co-op Manager.lnk"^) >> "%PS_SCRIPT%"
-    echo $s.TargetPath = "%SCRIPT_DIR%run.bat" >> "%PS_SCRIPT%"
+    echo $s.TargetPath = "wscript.exe" >> "%PS_SCRIPT%"
+    echo $s.Arguments = '"%SCRIPT_DIR%launch.vbs"' >> "%PS_SCRIPT%"
     echo $s.WorkingDirectory = "%SCRIPT_DIR%" >> "%PS_SCRIPT%"
     echo $s.Description = "FromSoft Co-op Settings Manager" >> "%PS_SCRIPT%"
     echo $s.Save(^) >> "%PS_SCRIPT%"
@@ -200,7 +202,7 @@ echo.
 choice /c YN /n /m "  Launch the app now? (Y/N) "
 if errorlevel 2 goto :done
 if errorlevel 1 (
-    call run.bat
+    wscript "%~dp0launch.vbs"
 )
 
 :done
