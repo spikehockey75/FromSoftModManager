@@ -147,22 +147,23 @@ echo.
 set "SCRIPT_DIR=%~dp0"
 
 REM Write a temp PowerShell script (avoids quoting issues)
+REM NOTE: ^) is used inside if/else blocks to escape ) for cmd.exe
 set "PS_SCRIPT=%TEMP%\fss_shortcut.ps1"
 echo $ws = New-Object -ComObject WScript.Shell > "%PS_SCRIPT%"
-echo $desktop = [Environment]::GetFolderPath('Desktop') >> "%PS_SCRIPT%"
+echo $desktop = [Environment]::GetFolderPath('Desktop'^) >> "%PS_SCRIPT%"
 if exist "%ICON_ICO%" (
-    echo $s = $ws.CreateShortcut("$desktop\FromSoft Seamless Co-op Manager.lnk") >> "%PS_SCRIPT%"
+    echo $s = $ws.CreateShortcut("$desktop\FromSoft Seamless Co-op Manager.lnk"^) >> "%PS_SCRIPT%"
     echo $s.TargetPath = "%SCRIPT_DIR%run.bat" >> "%PS_SCRIPT%"
     echo $s.WorkingDirectory = "%SCRIPT_DIR%" >> "%PS_SCRIPT%"
     echo $s.IconLocation = "%ICON_ICO%" >> "%PS_SCRIPT%"
     echo $s.Description = "FromSoft Co-op Settings Manager" >> "%PS_SCRIPT%"
-    echo $s.Save() >> "%PS_SCRIPT%"
+    echo $s.Save(^) >> "%PS_SCRIPT%"
 ) else (
-    echo $s = $ws.CreateShortcut("$desktop\FromSoft Seamless Co-op Manager.lnk") >> "%PS_SCRIPT%"
+    echo $s = $ws.CreateShortcut("$desktop\FromSoft Seamless Co-op Manager.lnk"^) >> "%PS_SCRIPT%"
     echo $s.TargetPath = "%SCRIPT_DIR%run.bat" >> "%PS_SCRIPT%"
     echo $s.WorkingDirectory = "%SCRIPT_DIR%" >> "%PS_SCRIPT%"
     echo $s.Description = "FromSoft Co-op Settings Manager" >> "%PS_SCRIPT%"
-    echo $s.Save() >> "%PS_SCRIPT%"
+    echo $s.Save(^) >> "%PS_SCRIPT%"
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" >nul 2>&1
