@@ -1248,6 +1248,8 @@ if __name__ == "__main__":
         print(f"Server is already running on http://127.0.0.1:{port}")
         print("Opening browser...")
         open_browser()
+        # Small delay to allow browser to launch before process exits
+        time.sleep(0.5)
         sys.exit(0)
 
     # Auto-open browser after a short delay
