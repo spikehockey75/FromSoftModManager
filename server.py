@@ -319,6 +319,21 @@ def detect_save_dir(appdata_folder):
     return None
 
 
+def get_steam_player_count(steam_app_id):
+    """Fetch current concurrent players from Steam API."""
+    if not steam_app_id:
+        return None
+    try:
+        url = f"https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid={steam_app_id}"
+        response = urllib.request.urlopen(url, timeout=5)
+        data = json.loads(response.read().decode('utf-8'))
+        if data.get("response", {}).get("result") == 1:
+            return data.get("response", {}).get("player_count", 0)
+    except Exception as e:
+        print(f"Failed to fetch player count for {steam_app_id}: {e}")
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Config persistence
 # ---------------------------------------------------------------------------
@@ -545,6 +560,14 @@ def api_games():
                 continue
     if pruned:
         save_config(cfg)           # persist the cleanup
+    
+    # Add player counts to each game
+    games = cfg.get("games", {})
+    for gid, game_data in games.items():
+        app_id = game_data.get("steam_app_id")
+        if app_id and "player_count" not in game_data:
+            game_data["player_count"] = get_steam_player_count(app_id)
+    
     return jsonify(cfg)
 
 
@@ -558,6 +581,22 @@ def api_scan():
     }
     save_config(cfg)
     return jsonify(cfg)
+
+
+@app.route("/api/player-counts")
+def api_player_counts():
+    """Return current player counts for all games."""
+    cfg = load_config()
+    games = cfg.get("games", {})
+    counts = {}
+    for gid, game_data in games.items():
+        app_id = game_data.get("steam_app_id")
+        if app_id:
+            counts[gid] = {
+                "name": game_data.get("name"),
+                "player_count": get_steam_player_count(app_id),
+            }
+    return jsonify(counts)
 
 
 @app.route("/api/settings/<game_id>")

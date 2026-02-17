@@ -164,6 +164,16 @@ function buildGameHome(gameIds) {
         badge.textContent = game.mod_installed ? "Co-op Mod Installed" : "Mod Not Installed";
         info.appendChild(badge);
 
+        // Player count
+        const playerEl = document.createElement("div");
+        playerEl.className = "home-card-players";
+        if (game.player_count !== null && game.player_count !== undefined) {
+            playerEl.innerHTML = `<span class="players-icon">👥</span> ${game.player_count.toLocaleString()} playing`;
+        } else {
+            playerEl.innerHTML = `<span class="players-icon">👥</span> --`;
+        }
+        info.appendChild(playerEl);
+
         // Action buttons
         const actions = document.createElement("div");
         actions.className = "home-card-actions";

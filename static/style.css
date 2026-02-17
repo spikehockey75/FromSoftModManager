@@ -228,6 +228,17 @@ header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: .02em; }
     background: rgba(231,76,60,.15);
     color: #e74c3c;
 }
+.home-card-players {
+    font-size: .75rem;
+    color: #bdc3c7;
+    margin-top: .2rem;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+}
+.players-icon {
+    font-size: .85rem;
+}
 .home-card-actions {
     display: flex;
     gap: .5rem;
