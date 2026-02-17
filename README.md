@@ -2,6 +2,8 @@
 
 An all-in-one desktop tool for managing Seamless Co-op mods across multiple FromSoftware games. Install mods, configure settings, manage save files, launch co-op sessions, and create desktop shortcuts — all from a clean web-based dashboard running locally on your PC.
 
+> **Note:** This is a **manager tool only**. The Seamless Co-op mods themselves are created by [LukeYui](https://github.com/LukeYui). All credit for the actual mods goes to them — this project simply provides a convenient way to install, configure, and launch them.
+
 ![Windows](https://img.shields.io/badge/platform-Windows-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
