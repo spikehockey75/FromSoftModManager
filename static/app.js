@@ -195,7 +195,9 @@ async function fetchPlayerCounts() {
         const counts = await res.json();
         for (const gameId in counts) {
             if (currentGames[gameId]) {
-                currentGames[gameId].player_count = counts[gameId];
+                // Extract the player_count number from the nested object
+                const countData = counts[gameId];
+                currentGames[gameId].player_count = countData.player_count;
             }
         }
         // Rebuild game home to display updated player counts
@@ -287,7 +289,7 @@ function buildGameHome(gameIds) {
         // Player count display
         const playerEl = document.createElement("div");
         playerEl.className = "home-card-players";
-        if (game.player_count !== null && game.player_count !== undefined) {
+        if (typeof game.player_count === 'number') {
             playerEl.innerHTML = `<span class="players-icon">👥</span> ${game.player_count.toLocaleString()} playing`;
         } else {
             playerEl.innerHTML = `<span class="players-icon">👥</span> --`;
