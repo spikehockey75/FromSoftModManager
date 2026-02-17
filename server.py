@@ -51,7 +51,7 @@ GAME_DEFINITIONS = {
     },
     "dsr": {
         "name": "Dark Souls Remastered",
-        "steam_app_id": 211420,
+        "steam_app_id": 570940,
         "steam_folder": "DARK SOULS REMASTERED",
         "config_relative": os.path.join("Game", "SeamlessCoop", "dsr_settings.ini"),
         "mod_extract_relative": "Game",
@@ -147,7 +147,7 @@ GAME_DEFINITIONS = {
     },
     "ern": {
         "name": "Elden Ring Nightreign",
-        "steam_app_id": 2778580,
+        "steam_app_id": 2622380,
         "steam_folder": "ELDEN RING NIGHTREIGN",
         "config_relative": os.path.join("Game", "SeamlessCoop", "ersc_settings.ini"),
         "mod_extract_relative": "Game",
@@ -598,18 +598,6 @@ def api_games():
             game_data["player_count"] = get_steam_player_count(app_id)
     
     return jsonify(cfg)
-
-
-@app.route("/api/player-counts")
-def api_player_counts():
-    """Return current player counts for all games."""
-    cfg = load_config()
-    games = cfg.get("games", {})
-    counts = {}
-    for gid in games:
-        steam_app_id = games[gid].get("steam_app_id")
-        counts[gid] = get_steam_player_count(steam_app_id)
-    return jsonify(counts)
 
 
 @app.route("/api/scan", methods=["POST"])

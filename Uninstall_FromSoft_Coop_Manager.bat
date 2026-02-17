@@ -6,7 +6,7 @@ color 0C
 echo.
 echo  +==============================================================+
 echo  :                                                              :
-echo  :      FromSoft Co-op Manager — Uninstaller                    :
+echo  :      FromSoft Co-op Manager - Uninstaller                    :
 echo  :                                                              :
 echo  :   This will remove the app and all shortcuts.                :
 echo  :                                                              :
@@ -29,27 +29,45 @@ echo.
 echo  Stopping any running instances...
 echo.
 
-REM Kill any running Python processes
-tasklist | findstr "pythonw.exe python.exe" >nul 2>&1
-if errorlevel 0 (
-    taskkill /F /IM pythonw.exe >nul 2>&1
-    taskkill /F /IM python.exe >nul 2>&1
-    echo  Stopped running instances.
-)
-echo.
-
-REM Install directory
+REM Kill any running Python processes from this app (more targeted approach)
+REM Only kill processes that are running from the install directory
 set "INSTALL_DIR=%LOCALAPPDATA%\FromSoftCoopManager"
+
+REM Use WMIC to find and kill only Python processes from our install directory
+for /f "tokens=2" %%p in ('wmic process where "name='pythonw.exe' and commandline like '%%FromSoftCoopManager%%'" get processid 2^>nul ^| findstr /r "[0-9]"') do (
+    taskkill /F /PID %%p >nul 2>&1
+)
+for /f "tokens=2" %%p in ('wmic process where "name='python.exe' and commandline like '%%FromSoftCoopManager%%'" get processid 2^>nul ^| findstr /r "[0-9]"') do (
+    taskkill /F /PID %%p >nul 2>&1
+)
+
+REM Wait a moment for processes to fully exit and release file handles
+timeout /t 2 /nobreak >nul 2>&1
+
+echo  Stopped any running instances.
+echo.
 
 echo  Removing installation folder...
 echo  Path: %INSTALL_DIR%
 echo.
 
 if exist "%INSTALL_DIR%" (
-    rd /s /q "%INSTALL_DIR%"
-    if errorlevel 1 (
-        echo  [WARNING] Could not fully delete install folder.
-        echo            Some files may still exist.
+    rd /s /q "%INSTALL_DIR%" >nul 2>&1
+    
+    REM Verify deletion succeeded
+    if exist "%INSTALL_DIR%" (
+        echo  [WARNING] Could not fully delete install folder on first attempt.
+        echo            Retrying...
+        timeout /t 1 /nobreak >nul 2>&1
+        rd /s /q "%INSTALL_DIR%" >nul 2>&1
+        
+        if exist "%INSTALL_DIR%" (
+            echo  [WARNING] Some files may still exist at:
+            echo            %INSTALL_DIR%
+            echo            You may need to manually delete this folder.
+        ) else (
+            echo  Installation folder deleted.
+        )
     ) else (
         echo  Installation folder deleted.
     )
@@ -61,17 +79,28 @@ echo.
 echo  Removing desktop shortcuts...
 echo.
 
-REM Delete from regular Desktop
-if exist "%USERPROFILE%\Desktop\FromSoft Seamless Co-op Manager.lnk" (
-    del "%USERPROFILE%\Desktop\FromSoft Seamless Co-op Manager.lnk"
-    echo  Deleted: FromSoft Seamless Co-op Manager.lnk
+REM Set the shortcut name
+set "SHORTCUT_NAME=FromSoft Seamless Co-op Manager.lnk"
+set "SHORTCUT_DELETED=0"
+
+REM Get actual desktop path from PowerShell
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"') do set "DESKTOP_PATH=%%i"
+echo  Looking in: %DESKTOP_PATH%
+echo.
+
+REM Delete shortcuts by name
+if exist "%DESKTOP_PATH%\%SHORTCUT_NAME%" (
+    del /F /Q "%DESKTOP_PATH%\%SHORTCUT_NAME%"
+    echo  Deleted: %SHORTCUT_NAME%
+    set "SHORTCUT_DELETED=1"
 )
 
-REM Delete from OneDrive Desktop (if it exists)
-if exist "%USERPROFILE%\OneDrive\Desktop\FromSoft Seamless Co-op Manager.lnk" (
-    del "%USERPROFILE%\OneDrive\Desktop\FromSoft Seamless Co-op Manager.lnk"
-    echo  Deleted: FromSoft Seamless Co-op Manager.lnk (OneDrive)
-)
+REM Use PowerShell to find and delete any shortcut that targets launch.vbs (check both standard and OneDrive Desktop)
+powershell -NoProfile -Command "$desktops = @([Environment]::GetFolderPath('Desktop'), \"$env:USERPROFILE\OneDrive\Desktop\"); foreach ($desktop in $desktops) { if (Test-Path $desktop) { Write-Host \"  Checking: $desktop\"; Get-ChildItem -Path $desktop -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object { $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($_.FullName); Write-Host \"    Found shortcut: $($_.Name)\"; Write-Host \"      Target: $($shortcut.TargetPath)\"; Write-Host \"      Arguments: $($shortcut.Arguments)\"; if ($shortcut.TargetPath -match 'wscript' -and $shortcut.Arguments -match 'launch\.vbs') { Remove-Item $_.FullName -Force; Write-Host \"      DELETED: $($_.Name)\"; } } } }"
+
+echo.
+echo  Desktop shortcut removal complete.
+echo.
 
 REM Delete game shortcuts (AC6, DS3, ER, DSR, ERN)
 set "GAMES=Armored Core 6 Dark Souls III Dark Souls Remastered Elden Ring Elden Ring Nightreign"
