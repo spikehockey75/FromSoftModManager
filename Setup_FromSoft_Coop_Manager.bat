@@ -146,7 +146,15 @@ if not defined EXTRACTED_INNER (
 )
 
 REM Create install directory and copy files
-if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+REM Clean install directory first to avoid old cached files
+if exist "%INSTALL_DIR%" (
+    echo        Cleaning old installation...
+    rd /s /q "%INSTALL_DIR%" >nul 2>&1
+    timeout /t 1 /nobreak >nul 2>&1
+    REM Try again if first attempt failed
+    if exist "%INSTALL_DIR%" rd /s /q "%INSTALL_DIR%" >nul 2>&1
+)
+mkdir "%INSTALL_DIR%"
 xcopy /s /e /y /q "!EXTRACTED_INNER!\*" "%INSTALL_DIR%\" >nul
 if errorlevel 1 (
     echo  [ERROR] Failed to copy files to install directory.
