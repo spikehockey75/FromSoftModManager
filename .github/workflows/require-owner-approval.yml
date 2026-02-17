@@ -1,0 +1,49 @@
+name: Require Owner Approval
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  check-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if approved by repo owner
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const prAuthor = pr.user.login;
+            
+            // If PR author IS the repo owner, skip approval check
+            if (prAuthor === owner) {
+              console.log(`✅ PR opened by @${owner} (repo owner) - approval not required`);
+              return;
+            }
+            
+            // If PR is a draft, skip the check
+            if (pr.draft) {
+              console.log("PR is a draft, skipping approval check");
+              return;
+            }
+            
+            // Get PR reviews
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+            
+            // Check for approval from repo owner
+            const ownerApproval = reviews.data.find(review => 
+              review.user.login === owner && 
+              review.state === 'APPROVED'
+            );
+            
+            if (!ownerApproval) {
+              core.setFailed(`PR from @${prAuthor} requires approval from @${owner} (repo owner) before merging.`);
+            } else {
+              console.log(`✅ PR approved by @${owner}`);
+            }

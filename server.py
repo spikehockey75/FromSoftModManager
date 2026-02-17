@@ -157,7 +157,7 @@ GAME_DEFINITIONS = {
         "coop_ext": ".co2",
         "mod_name": "ER Nightreign Seamless Co-op",
         "nexus_url": "https://www.nexusmods.com/eldenringnightreign/mods/3",
-        "zip_pattern": r"nightreign.*seamless.*co-?op.*\.zip$",
+        "zip_pattern": r"nightreign.*seamless.*co-?op.*\.zip$|ern.*seamless.*co-?op.*\.zip$",
         "launcher_relative": os.path.join("Game", "ersc_launcher.exe"),
         "mod_marker_relative": os.path.join("Game", "SeamlessCoop"),
         "defaults": {
