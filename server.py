@@ -601,6 +601,48 @@ def api_games():
     return jsonify(cfg)
 
 
+@app.route("/api/debug/nightreign")
+def api_debug_nightreign():
+    """Debug endpoint to check Nightreign mod detection"""
+    cfg = load_config()
+    games = cfg.get("games", {})
+    ern_game = games.get("ern", {})
+    
+    if not ern_game:
+        return jsonify({"error": "Nightreign not found in config"})
+    
+    install_path = ern_game.get("install_path", "")
+    gdef = GAME_DEFINITIONS.get("ern", {})
+    
+    config_relative = gdef.get("config_relative", "")
+    launcher_relative = gdef.get("launcher_relative", "")
+    
+    config_path = os.path.join(install_path, config_relative)
+    launcher_path = os.path.join(install_path, launcher_relative)
+    
+    debug_info = {
+        "install_path": install_path,
+        "install_path_exists": os.path.isdir(install_path),
+        "config_relative": str(config_relative),
+        "config_path": config_path,
+        "config_exists": os.path.isfile(config_path),
+        "launcher_relative": str(launcher_relative),
+        "launcher_path": launcher_path,
+        "launcher_exists": os.path.isfile(launcher_path),
+        "mod_installed_in_config": ern_game.get("mod_installed", False),
+    }
+    
+    # List files in Game directory
+    game_dir = os.path.join(install_path, "Game")
+    if os.path.isdir(game_dir):
+        debug_info["game_dir_contents"] = os.listdir(game_dir)
+        seamless_dir = os.path.join(game_dir, "SeamlessCoop")
+        if os.path.isdir(seamless_dir):
+            debug_info["seamless_dir_contents"] = os.listdir(seamless_dir)
+    
+    return jsonify(debug_info)
+
+
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     """Scan all drives for FromSoft co-op mods, update config."""
