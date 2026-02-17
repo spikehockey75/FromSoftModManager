@@ -13,6 +13,7 @@ const noGames  = $("#no-games");
 const gameHome = $("#game-home");
 const scanBtn  = $("#btn-scan");
 const scanStat = $("#scan-status");
+const versionDisplay = $("#version-display");
 
 let currentGames = {};      // game_id → {name, config_path, save_dir, ...}
 let activeTab    = null;    // currently selected game_id
@@ -20,6 +21,9 @@ let settingsCache = {};     // game_id → sections data
 let originalValues = {};    // game_id → { key: originalValue }
 let defaultValues = {};     // game_id → { key: defaultValue }
 let dirtyGames = new Set(); // game_ids with unsaved changes
+let playerCountInterval = null;  // interval ID for auto-refreshing player counts
+let currentVersion = null;  // current app version
+let latestVersion = null;   // latest version from GitHub
 
 // ─── Toast ───────────────────────────────────────────────────
 function toast(message, type = "info", duration = 3000) {
@@ -76,6 +80,83 @@ function setLoading(on) {
     }
 }
 
+// ─── Version checking and update prompts ─────────────────────
+async function loadVersion() {
+    try {
+        const res = await fetch("/api/version");
+        const data = await res.json();
+        currentVersion = data.version;
+        displayVersion();
+        checkForUpdates();
+    } catch (err) {
+        console.warn("Failed to load version:", err);
+    }
+}
+
+function displayVersion() {
+    if (currentVersion && currentVersion !== "unknown") {
+        versionDisplay.textContent = `v${currentVersion}`;
+    }
+}
+
+function compareVersions(v1, v2) {
+    /**
+     * Compare semantic versions v1 and v2.
+     * Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2
+     */
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    const maxLen = Math.max(parts1.length, parts2.length);
+    
+    for (let i = 0; i < maxLen; i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+        if (p1 < p2) return -1;
+        if (p1 > p2) return 1;
+    }
+    return 0;
+}
+
+async function checkForUpdates() {
+    try {
+        const res = await fetch("https://api.github.com/repos/spikewebb/fromsoft_coop_manager/releases/latest");
+        if (!res.ok) {
+            console.warn("Failed to fetch latest release from GitHub");
+            return;
+        }
+        const data = await res.json();
+        let releaseVersion = data.tag_name;
+        // Remove 'v' prefix if present
+        if (releaseVersion.startsWith('v')) {
+            releaseVersion = releaseVersion.substring(1);
+        }
+        latestVersion = releaseVersion;
+        
+        if (currentVersion && compareVersions(currentVersion, releaseVersion) < 0) {
+            showUpdateAvailable(data);
+        }
+    } catch (err) {
+        console.warn("Failed to check for updates:", err);
+    }
+}
+
+function showUpdateAvailable(releaseData) {
+    versionDisplay.classList.add("update-available");
+    versionDisplay.textContent = `v${currentVersion} (New: ${latestVersion} available)`;
+    versionDisplay.style.cursor = "pointer";
+    versionDisplay.addEventListener("click", () => {
+        const confirmed = confirm(
+            `A new version (${latestVersion}) is available!\n\n` +
+            `Current: v${currentVersion}\n` +
+            `Latest: v${latestVersion}\n\n` +
+            `Would you like to download the update?`
+        );
+        if (confirmed) {
+            window.open(releaseData.html_url, "_blank");
+        }
+    });
+}
+
 // ─── Scan ────────────────────────────────────────────────────
 async function doScan() {
     setLoading(true);
@@ -98,11 +179,48 @@ async function loadConfig() {
         const cfg = await res.json();
         if (cfg.games && Object.keys(cfg.games).length > 0) {
             handleConfig(cfg);
+            // Fetch player counts asynchronously
+            fetchPlayerCounts();
         } else if (!cfg.last_scan) {
             // First launch — no games found and never scanned before: auto-scan
             doScan();
         }
     } catch (_) {}
+}
+
+// ─── Fetch and update player counts ──────────────────────────
+async function fetchPlayerCounts() {
+    try {
+        const res = await fetch("/api/player-counts");
+        const counts = await res.json();
+        for (const gameId in counts) {
+            if (currentGames[gameId]) {
+                currentGames[gameId].player_count = counts[gameId];
+            }
+        }
+        // Rebuild game home to display updated player counts
+        const ids = Object.keys(currentGames);
+        if (ids.length > 0) {
+            buildGameHome(ids);
+        }
+    } catch (err) {
+        console.warn("Failed to fetch player counts:", err);
+    }
+}
+
+// Start auto-refresh of player counts every 5 seconds
+function startPlayerCountRefresh() {
+    stopPlayerCountRefresh();  // Clear any existing interval
+    fetchPlayerCounts();  // Fetch immediately
+    playerCountInterval = setInterval(fetchPlayerCounts, 5000);
+}
+
+// Stop auto-refresh of player counts
+function stopPlayerCountRefresh() {
+    if (playerCountInterval) {
+        clearInterval(playerCountInterval);
+        playerCountInterval = null;
+    }
 }
 
 // ─── Process config data ─────────────────────────────────────
@@ -118,6 +236,7 @@ function handleConfig(cfg) {
 
     if (ids.length === 0) {
         show(noGames); hide(gameHome); hide(tabBar);
+        stopPlayerCountRefresh();
         return;
     }
 
@@ -125,6 +244,7 @@ function handleConfig(cfg) {
     panels.innerHTML = "";
     activeTab = null;
     buildGameHome(ids);
+    startPlayerCountRefresh();
 }
 
 // ================================================================
@@ -163,6 +283,16 @@ function buildGameHome(gameIds) {
         badge.className = `home-card-badge ${game.mod_installed ? "badge-installed" : "badge-missing"}`;
         badge.textContent = game.mod_installed ? "Co-op Mod Installed" : "Mod Not Installed";
         info.appendChild(badge);
+
+        // Player count display
+        const playerEl = document.createElement("div");
+        playerEl.className = "home-card-players";
+        if (game.player_count !== null && game.player_count !== undefined) {
+            playerEl.innerHTML = `<span class="players-icon">👥</span> ${game.player_count.toLocaleString()} playing`;
+        } else {
+            playerEl.innerHTML = `<span class="players-icon">👥</span> --`;
+        }
+        info.appendChild(playerEl);
 
         // Action buttons
         const actions = document.createElement("div");
@@ -248,6 +378,7 @@ function buildGameHome(gameIds) {
 
 // ─── Navigate into a game's detail view ──────────────────────
 async function openGameDetail(gameId) {
+    stopPlayerCountRefresh();
     hide(gameHome);
     activeTab = gameId;
     show(tabBar);
@@ -1286,4 +1417,7 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 // ─── Boot ────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", loadConfig);
+document.addEventListener("DOMContentLoaded", () => {
+    loadVersion();
+    loadConfig();
+});

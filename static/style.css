@@ -47,6 +47,19 @@ header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: .02em; }
     font-size: .78rem;
     color: var(--text-muted);
 }
+.version-display {
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-right: 1rem;
+}
+.version-display.update-available {
+    color: #f39c12;
+    font-weight: 600;
+    cursor: pointer;
+    padding: .3rem .6rem;
+    border-radius: var(--radius);
+    background: rgba(243, 156, 18, 0.1);
+}
 
 /* ─── Buttons ─────────────────────────────────────────────── */
 .btn {
@@ -227,6 +240,17 @@ header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: .02em; }
 .badge-missing {
     background: rgba(231,76,60,.15);
     color: #e74c3c;
+}
+.home-card-players {
+    font-size: .75rem;
+    color: #bdc3c7;
+    margin-top: .2rem;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+}
+.players-icon {
+    font-size: .85rem;
 }
 .home-card-actions {
     display: flex;

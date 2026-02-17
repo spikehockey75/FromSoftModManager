@@ -251,6 +251,21 @@ def find_steam_libraries():
     return list(library_dirs)
 
 
+def get_steam_player_count(steam_app_id):
+    """Fetch current concurrent players from Steam API."""
+    if not steam_app_id:
+        return None
+    try:
+        url = f"https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid={steam_app_id}"
+        response = urllib.request.urlopen(url, timeout=5)
+        data = json.loads(response.read().decode('utf-8'))
+        if data.get("response", {}).get("result") == 1:
+            return data.get("response", {}).get("player_count", 0)
+    except Exception as e:
+        print(f"Failed to fetch player count for {steam_app_id}: {e}")
+    return None
+
+
 def scan_for_games():
     """Scan all Steam libraries for FromSoft games (with or without mod). Returns dict."""
     libraries = find_steam_libraries()
@@ -524,6 +539,20 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/version")
+def api_version():
+    """Return the current app version."""
+    try:
+        version_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")
+        if os.path.isfile(version_file):
+            with open(version_file, 'r') as f:
+                version = f.read().strip()
+                return jsonify({"version": version})
+    except Exception as e:
+        print(f"Failed to read version: {e}")
+    return jsonify({"version": "unknown"})
+
+
 @app.route("/api/games")
 def api_games():
     """Return currently known games, pruning any that are no longer installed."""
@@ -546,6 +575,18 @@ def api_games():
     if pruned:
         save_config(cfg)           # persist the cleanup
     return jsonify(cfg)
+
+
+@app.route("/api/player-counts")
+def api_player_counts():
+    """Return current player counts for all games."""
+    cfg = load_config()
+    games = cfg.get("games", {})
+    counts = {}
+    for gid in games:
+        steam_app_id = games[gid].get("steam_app_id")
+        counts[gid] = get_steam_player_count(steam_app_id)
+    return jsonify(counts)
 
 
 @app.route("/api/scan", methods=["POST"])
