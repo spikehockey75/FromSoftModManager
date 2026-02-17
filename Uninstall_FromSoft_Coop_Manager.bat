@@ -62,27 +62,37 @@ REM Set the shortcut name
 set "SHORTCUT_NAME=FromSoft Seamless Co-op Manager.lnk"
 set "SHORTCUT_DELETED=0"
 
-REM Delete from regular Desktop
-if exist "%USERPROFILE%\Desktop\%SHORTCUT_NAME%" (
-    del "%USERPROFILE%\Desktop\%SHORTCUT_NAME%"
+REM Get actual desktop path from PowerShell
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"') do set "DESKTOP_PATH=%%i"
+echo  Looking in: %DESKTOP_PATH%
+
+REM List shortcuts to help debug
+echo  Existing shortcuts:
+dir "%DESKTOP_PATH%\*.lnk" /b 2>nul | findstr /i "fromsoft seamless co-op coop manager" 
+echo.
+
+REM Delete using PowerShell (most reliable)
+powershell -NoProfile -Command "$desktop = [Environment]::GetFolderPath('Desktop'); $pattern = 'FromSoft*Co-op*.lnk'; Get-ChildItem -Path $desktop -Filter $pattern | Remove-Item -Force; $shortcut = Join-Path $desktop 'FromSoft Seamless Co-op Manager.lnk'; if (Test-Path $shortcut) { Remove-Item $shortcut -Force }"
+if exist "%DESKTOP_PATH%\%SHORTCUT_NAME%" (
+    echo  Shortcut still exists, trying direct delete...
+    del /F /Q "%DESKTOP_PATH%\%SHORTCUT_NAME%" 2>nul
+)
+
+REM Check if deleted
+if not exist "%DESKTOP_PATH%\%SHORTCUT_NAME%" (
     echo  Deleted: %SHORTCUT_NAME%
     set "SHORTCUT_DELETED=1"
+) else (
+    echo  [WARNING] Could not delete: %SHORTCUT_NAME%
+    echo            Manual deletion required from: %DESKTOP_PATH%
 )
 
-REM Delete from OneDrive Desktop (if it exists)
+REM Also check standard paths
+if exist "%USERPROFILE%\Desktop\%SHORTCUT_NAME%" (
+    del /F /Q "%USERPROFILE%\Desktop\%SHORTCUT_NAME%"
+)
 if exist "%USERPROFILE%\OneDrive\Desktop\%SHORTCUT_NAME%" (
-    del "%USERPROFILE%\OneDrive\Desktop\%SHORTCUT_NAME%"
-    echo  Deleted: %SHORTCUT_NAME% (OneDrive)
-    set "SHORTCUT_DELETED=1"
-)
-
-REM Use PowerShell to find and delete the shortcut from any Desktop location
-powershell -NoProfile -Command "$desktop = [Environment]::GetFolderPath('Desktop'); $shortcut = Join-Path $desktop '%SHORTCUT_NAME%'; if (Test-Path $shortcut) { Remove-Item $shortcut -Force; Write-Host '  Deleted: %SHORTCUT_NAME% (PowerShell)'; exit 0 } else { exit 1 }" 2>nul
-if %errorlevel%==0 set "SHORTCUT_DELETED=1"
-
-REM Report if no shortcut was found
-if "%SHORTCUT_DELETED%"=="0" (
-    echo  Desktop shortcut not found.
+    del /F /Q "%USERPROFILE%\OneDrive\Desktop\%SHORTCUT_NAME%"
 )
 
 REM Delete game shortcuts (AC6, DS3, ER, DSR, ERN)
