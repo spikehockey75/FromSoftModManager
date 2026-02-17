@@ -6,7 +6,7 @@ An all-in-one desktop tool for managing Seamless Co-op mods across multiple From
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-> **Quick download:** Grab the installer from the latest GitHub **Releases** page, then run `Setup_FromSoft_Coop_Manager.bat`.
+> **Quick install:** Download `Setup_FromSoft_Coop_Manager.bat` from the latest [Release](https://github.com/spikehockey75/FromSoftSeamlessCoOpManager/releases), double-click it, and you're done.
 
 ---
 
@@ -87,47 +87,44 @@ An all-in-one desktop tool for managing Seamless Co-op mods across multiple From
 - **Windows 10/11**
 - **Steam** with at least one supported game installed
 
-> **Python** is required but the installer will install it automatically if you don't have it — no manual steps needed.
+> That's it. The installer handles everything else — Python, dependencies, shortcuts — all automatically.
 
-### Step 1: Get the Files
+### Quick Install (Recommended)
 
-**Option A — Clone or download:**
-```
-git clone <repo-url> FromSoftSeamlessCoOpManager
-```
+1. Download **`Setup_FromSoft_Coop_Manager.bat`** from the latest [GitHub Release](https://github.com/spikehockey75/FromSoftSeamlessCoOpManager/releases)
+2. **Double-click it**
+3. Done.
 
-**Option B — Download ZIP:**
-- Click the green **Code** button → **Download ZIP**
-- Extract to any folder (e.g., `C:\Users\YourName\FromSoftSeamlessCoOpManager`)
-
-**Option C — Received the folder directly:**
-- Place it wherever you like (Desktop, Documents, etc.)
-
-### Step 2: Run the Installer
-
-1. Open the `FromSoftSeamlessCoOpManager` folder
-2. **Double-click `Setup_FromSoft_Coop_Manager.bat`**
-
-The installer handles everything automatically:
+The single installer file does everything:
 
 | Step | What it does |
 |------|-------------|
-| **1/5** | Checks for Python — if missing, installs it automatically via `winget` or direct download |
-| **2/5** | Creates an isolated `.venv` virtual environment (nothing touches your system Python) |
-| **3/5** | Installs dependencies: Flask (web framework) and Pillow (image processing) |
-| **4/5** | Converts the app icon (`FSSIcon.png`) to Windows `.ico` format |
-| **5/5** | Creates a **desktop shortcut** ("FromSoft Seamless Co-op Manager") with the app icon |
+| **1/7** | Installs Python automatically if missing (via `winget` or direct download) |
+| **2/7** | Downloads the full application from GitHub |
+| **3/7** | Installs to `%LOCALAPPDATA%\FromSoftCoopManager` |
+| **4/7** | Creates an isolated virtual environment |
+| **5/7** | Installs dependencies (Flask, Pillow) |
+| **6/7** | Creates launcher scripts and converts the app icon |
+| **7/7** | Creates a **desktop shortcut** ("FromSoft Seamless Co-op Manager") |
 
-> **Don't have Python?** The installer handles it automatically — it tries `winget` first, then falls back to downloading and running the official Python installer silently. PATH is configured automatically so the rest of the install continues without restarting.
+### Alternative: Clone the Repo
 
-### Step 3: Launch the App
+If you prefer to clone the repo (e.g., for development):
+```
+git clone https://github.com/spikehockey75/FromSoftSeamlessCoOpManager.git
+cd FromSoftSeamlessCoOpManager
+Setup_FromSoft_Coop_Manager.bat
+```
+The installer detects it's already inside the repo and skips the download step.
+
+### Launch the App
 
 After installation, start the app any of these ways:
 
 | Method | How |
 |--------|-----|
 | **Desktop shortcut** | Double-click "FromSoft Seamless Co-op Manager" on your Desktop |
-| **run.bat** | Double-click `run.bat` in the app folder |
+| **run.bat** | Double-click `run.bat` in the install folder |
 | **From installer** | The installer asks "Launch the app now?" at the end |
 
 Your default web browser opens automatically to `http://127.0.0.1:5000`.
@@ -239,7 +236,7 @@ The server runs in the background — there's no console window to close. To sto
 
 ### Can I move the folder?
 
-Yes. Move the entire `FromSoftSeamlessCoOpManager` folder wherever you want. Run `Setup_FromSoft_Coop_Manager.bat` again afterward to update the desktop shortcut paths.
+Yes. The app is installed to `%LOCALAPPDATA%\FromSoftCoopManager` by default. You can move this folder wherever you want, then run `Setup_FromSoft_Coop_Manager.bat` again to update the desktop shortcut.
 
 ### Does this modify my game files?
 
@@ -259,12 +256,12 @@ Yes. Add a new entry to the `GAME_DEFINITIONS` dictionary in `server.py`. Each e
 
 ## Uninstalling
 
-1. Delete the `FromSoftSeamlessCoOpManager` folder
+1. Delete the install folder: `%LOCALAPPDATA%\FromSoftCoopManager`
 2. Delete any desktop shortcuts:
   - "FromSoft Seamless Co-op Manager"
    - "[Game Name] Co-op" (e.g., "Dark Souls III Co-op")
 
-That's it. Nothing is installed system-wide. The `.venv` virtual environment and `icons/` cache are all inside the app folder.
+That's it. Nothing is installed system-wide (except Python if the installer added it). The virtual environment and all app data are inside the install folder.
 
 ---
 
