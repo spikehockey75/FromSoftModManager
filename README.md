@@ -99,13 +99,12 @@ The single installer file does everything:
 
 | Step | What it does |
 |------|-------------|
-| **1/7** | Installs Python automatically if missing (via `winget` or direct download) |
-| **2/7** | Downloads the full application from GitHub |
-| **3/7** | Installs to `%LOCALAPPDATA%\FromSoftCoopManager` |
-| **4/7** | Creates an isolated virtual environment |
-| **5/7** | Installs dependencies (Flask, Pillow) |
-| **6/7** | Creates launcher scripts and converts the app icon |
-| **7/7** | Creates a **desktop shortcut** ("FromSoft Seamless Co-op Manager") |
+| **1/6** | Installs Python automatically if missing (via `winget` or direct download) |
+| **2/6** | Downloads the full application from GitHub |
+| **3/6** | Installs to `%LOCALAPPDATA%\FromSoftCoopManager` |
+| **4/6** | Creates an isolated virtual environment |
+| **5/6** | Installs dependencies (Flask, Pillow) |
+| **6/6** | Creates launcher scripts and a **desktop shortcut** |
 
 ### Alternative: Clone the Repo
 

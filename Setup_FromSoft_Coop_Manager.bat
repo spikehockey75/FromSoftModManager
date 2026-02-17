@@ -30,7 +30,7 @@ if exist "%~dp0server.py" (
 )
 
 REM --- Step 1: Check for Python -----------------------------------
-echo  [1/7] Checking for Python...
+echo  [1/6] Checking for Python...
 echo.
 
 python --version >nul 2>&1
@@ -106,7 +106,7 @@ echo         Found: %PYVER%
 echo.
 
 REM --- Step 2: Download application files -------------------------
-echo  [2/7] Downloading application files...
+echo  [2/6] Downloading application files...
 echo.
 
 if exist "%EXTRACT_DIR%" rd /s /q "%EXTRACT_DIR%"
@@ -124,7 +124,7 @@ echo        Download complete.
 echo.
 
 REM --- Step 3: Extract and install --------------------------------
-echo  [3/7] Installing application...
+echo  [3/6] Installing application...
 echo.
 
 echo        Extracting files...
@@ -167,7 +167,7 @@ REM Change to the install directory for remaining steps
 cd /d "%INSTALL_DIR%"
 
 REM --- Step 4: Create virtual environment -------------------------
-echo  [4/7] Setting up virtual environment...
+echo  [4/6] Setting up virtual environment...
 echo.
 
 if not exist ".venv\Scripts\activate.bat" (
@@ -186,7 +186,7 @@ if not exist ".venv\Scripts\activate.bat" (
 echo.
 
 REM --- Step 5: Install dependencies -------------------------------
-echo  [5/7] Installing dependencies...
+echo  [5/6] Installing dependencies...
 echo.
 
 call .venv\Scripts\activate.bat
@@ -205,31 +205,12 @@ if errorlevel 1 (
 )
 echo.
 
-REM --- Step 6: Create launcher scripts and icon -------------------
-echo  [6/7] Creating launcher scripts and icon...
+REM --- Step 6: Create launcher scripts ----------------------------
+echo  [6/6] Creating launcher scripts and desktop shortcut...
 echo.
 
 set "SCRIPT_DIR=%INSTALL_DIR%\"
-
-REM Convert icon PNG to ICO if needed
-set "ICON_PNG=%INSTALL_DIR%\FSSIcon.png"
 set "ICON_ICO=%INSTALL_DIR%\FSSIcon.ico"
-
-if exist "%ICON_PNG%" (
-    if not exist "%ICON_ICO%" (
-        echo        Converting icon to .ico format...
-        python -c "from PIL import Image; img = Image.open(r'%ICON_PNG%'); img.save(r'%ICON_ICO%', format='ICO', sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])"
-        if exist "%ICON_ICO%" (
-            echo        Icon converted successfully.
-        ) else (
-            echo        Icon conversion failed ^(not critical^).
-        )
-    ) else (
-        echo        Icon already exists.
-    )
-) else (
-    echo        No FSSIcon.png found, skipping icon setup.
-)
 
 REM Create launch.vbs (silent launcher - no console window)
 echo Set WshShell = CreateObject("WScript.Shell"^) > "%INSTALL_DIR%\launch.vbs"
@@ -260,9 +241,7 @@ echo ^) >> "%INSTALL_DIR%\run.bat"
 echo        run.bat created.
 echo.
 
-REM --- Step 7: Create desktop shortcut ----------------------------
-echo  [7/7] Creating desktop shortcut...
-echo.
+REM Create desktop shortcut
 
 REM Write a temp PowerShell script (avoids quoting issues)
 REM NOTE: ^) is used inside if/else blocks to escape ) for cmd.exe
