@@ -149,7 +149,7 @@ GAME_DEFINITIONS = {
         "name": "Elden Ring Nightreign",
         "steam_app_id": 2622380,
         "steam_folder": "ELDEN RING NIGHTREIGN",
-        "config_relative": os.path.join("Game", "SeamlessCoop", "ersc_settings.ini"),
+        "config_relative": os.path.join("Game", "SeamlessCoop", "nrsc_settings.ini"),
         "mod_extract_relative": "Game",
         "save_appdata_folder": "EldenRingNightreign",
         "save_prefix": "ERN0000",
@@ -158,7 +158,7 @@ GAME_DEFINITIONS = {
         "mod_name": "ER Nightreign Seamless Co-op",
         "nexus_url": "https://www.nexusmods.com/eldenringnightreign/mods/3",
         "zip_pattern": r"nightreign.*seamless.*co-?op.*\.zip$|ern.*seamless.*co-?op.*\.zip$",
-        "launcher_relative": os.path.join("Game", "ersc_launcher.exe"),
+        "launcher_relative": os.path.join("Game", "nrsc_launcher.exe"),
         "mod_marker_relative": os.path.join("Game", "SeamlessCoop"),
         "defaults": {
             "allow_invaders": "1",
