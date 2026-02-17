@@ -65,27 +65,17 @@ set "SHORTCUT_DELETED=0"
 REM Get actual desktop path from PowerShell
 for /f "delims=" %%i in ('powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"') do set "DESKTOP_PATH=%%i"
 echo  Looking in: %DESKTOP_PATH%
-
-REM List shortcuts to help debug
-echo  Existing shortcuts:
-dir "%DESKTOP_PATH%\*.lnk" /b 2>nul | findstr /i "fromsoft seamless co-op coop manager" 
 echo.
 
-REM Delete using PowerShell (most reliable)
-powershell -NoProfile -Command "$desktop = [Environment]::GetFolderPath('Desktop'); $pattern = 'FromSoft*Co-op*.lnk'; Get-ChildItem -Path $desktop -Filter $pattern | Remove-Item -Force; $shortcut = Join-Path $desktop 'FromSoft Seamless Co-op Manager.lnk'; if (Test-Path $shortcut) { Remove-Item $shortcut -Force }"
+REM Delete shortcuts by name
 if exist "%DESKTOP_PATH%\%SHORTCUT_NAME%" (
-    echo  Shortcut still exists, trying direct delete...
-    del /F /Q "%DESKTOP_PATH%\%SHORTCUT_NAME%" 2>nul
-)
-
-REM Check if deleted
-if not exist "%DESKTOP_PATH%\%SHORTCUT_NAME%" (
+    del /F /Q "%DESKTOP_PATH%\%SHORTCUT_NAME%"
     echo  Deleted: %SHORTCUT_NAME%
     set "SHORTCUT_DELETED=1"
-) else (
-    echo  [WARNING] Could not delete: %SHORTCUT_NAME%
-    echo            Manual deletion required from: %DESKTOP_PATH%
 )
+
+REM Use PowerShell to find and delete any shortcut that targets launch.vbs (regardless of install location)
+powershell -NoProfile -Command "$desktop = [Environment]::GetFolderPath('Desktop'); Get-ChildItem -Path $desktop -Filter '*.lnk' | ForEach-Object { $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($_.FullName); if ($shortcut.TargetPath -match 'wscript' -and $shortcut.Arguments -match 'launch\.vbs') { Remove-Item $_.FullName -Force; Write-Host \"  Deleted: $($_.Name)\"; } }" 2>nul
 
 REM Also check standard paths
 if exist "%USERPROFILE%\Desktop\%SHORTCUT_NAME%" (
@@ -96,8 +86,7 @@ if exist "%USERPROFILE%\OneDrive\Desktop\%SHORTCUT_NAME%" (
 )
 
 echo.
-echo  Press any key to continue...
-pause >nul
+echo  Desktop shortcut removal complete.
 echo.
 
 REM Delete game shortcuts (AC6, DS3, ER, DSR, ERN)
