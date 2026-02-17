@@ -51,7 +51,7 @@ GAME_DEFINITIONS = {
     },
     "dsr": {
         "name": "Dark Souls Remastered",
-        "steam_app_id": 211420,
+        "steam_app_id": 570940,
         "steam_folder": "DARK SOULS REMASTERED",
         "config_relative": os.path.join("Game", "SeamlessCoop", "dsr_settings.ini"),
         "mod_extract_relative": "Game",
