@@ -14,7 +14,7 @@ echo  +==============================================================+
 echo.
 
 REM --- Configuration ----------------------------------------------
-set "REPO_URL=https://github.com/spikehockey75/FromSoftSeamlessCoOpManager/archive/refs/heads/main.zip"
+set "REPO_URL=https://github.com/spikehockey75/FromSoftSeamlessCoOpManager/releases/latest/download/FromSoftSeamlessCoOpManager.zip"
 set "APP_NAME=FromSoft Seamless Co-op Manager"
 set "INSTALL_DIR=%LOCALAPPDATA%\FromSoftCoopManager"
 set "ZIP_FILE=%TEMP%\fromsoft_coop_manager.zip"
