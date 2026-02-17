@@ -29,13 +29,10 @@ echo.
 echo  Stopping any running instances...
 echo.
 
-REM Kill any running Python processes
-tasklist | findstr "pythonw.exe python.exe" >nul 2>&1
-if errorlevel 0 (
-    taskkill /F /IM pythonw.exe >nul 2>&1
-    taskkill /F /IM python.exe >nul 2>&1
-    echo  Stopped running instances.
-)
+REM Kill any running Python processes from this app
+taskkill /F /IM pythonw.exe >nul 2>&1
+taskkill /F /IM python.exe >nul 2>&1
+echo  Stopped any running instances.
 echo.
 
 REM Install directory
