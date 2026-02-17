@@ -58,16 +58,34 @@ echo.
 echo  Removing desktop shortcuts...
 echo.
 
+REM Set the shortcut name
+set "SHORTCUT_NAME=FromSoft Seamless Co-op Manager.lnk"
+
 REM Delete from regular Desktop
-if exist "%USERPROFILE%\Desktop\FromSoft Seamless Co-op Manager.lnk" (
-    del "%USERPROFILE%\Desktop\FromSoft Seamless Co-op Manager.lnk"
-    echo  Deleted: FromSoft Seamless Co-op Manager.lnk
+if exist "%USERPROFILE%\Desktop\%SHORTCUT_NAME%" (
+    del "%USERPROFILE%\Desktop\%SHORTCUT_NAME%"
+    echo  Deleted: %SHORTCUT_NAME%
+) else (
+    echo  Not found: %USERPROFILE%\Desktop\%SHORTCUT_NAME%
 )
 
 REM Delete from OneDrive Desktop (if it exists)
-if exist "%USERPROFILE%\OneDrive\Desktop\FromSoft Seamless Co-op Manager.lnk" (
-    del "%USERPROFILE%\OneDrive\Desktop\FromSoft Seamless Co-op Manager.lnk"
-    echo  Deleted: FromSoft Seamless Co-op Manager.lnk (OneDrive)
+if exist "%USERPROFILE%\OneDrive\Desktop\%SHORTCUT_NAME%" (
+    del "%USERPROFILE%\OneDrive\Desktop\%SHORTCUT_NAME%"
+    echo  Deleted: %SHORTCUT_NAME% (OneDrive)
+)
+
+REM Try common Desktop folder location as a fallback
+for /f "tokens=3*" %%A in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop 2^>nul ^| find "Desktop"') do (
+    set "DESKTOP_PATH=%%A %%B"
+)
+if defined DESKTOP_PATH (
+    REM Expand environment variables in the path
+    call set "DESKTOP_PATH=%DESKTOP_PATH%"
+    if exist "%DESKTOP_PATH%\%SHORTCUT_NAME%" (
+        del "%DESKTOP_PATH%\%SHORTCUT_NAME%"
+        echo  Deleted: %SHORTCUT_NAME% (from %DESKTOP_PATH%)
+    )
 )
 
 REM Delete game shortcuts (AC6, DS3, ER, DSR, ERN)
