@@ -10,6 +10,7 @@ import subprocess
 import zipfile
 import webbrowser
 import threading
+import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
