@@ -1,0 +1,51 @@
+name: Check Version Increment
+
+on:
+  pull_request:
+    paths:
+      - 'VERSION'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current version (PR branch)
+        id: pr_version
+        run: |
+          if [ -f VERSION ]; then
+            echo "version=$(cat VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+          else
+            echo "version=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get base version (main branch)
+        id: base_version
+        run: |
+          git fetch origin main:main
+          if git show main:VERSION > /dev/null 2>&1; then
+            echo "version=$(git show main:VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.0.0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compare versions
+        run: |
+          PR_VERSION="${{ steps.pr_version.outputs.version }}"
+          BASE_VERSION="${{ steps.base_version.outputs.version }}"
+          
+          echo "PR version: $PR_VERSION"
+          echo "Base version: $BASE_VERSION"
+          
+          if [ "$PR_VERSION" = "$BASE_VERSION" ]; then
+            echo "❌ Version has not been incremented!"
+            echo "Please update the VERSION file before merging."
+            exit 1
+          else
+            echo "✅ Version has been incremented from $BASE_VERSION to $PR_VERSION"
+            exit 0
+          fi
