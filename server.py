@@ -147,7 +147,7 @@ GAME_DEFINITIONS = {
     },
     "ern": {
         "name": "Elden Ring Nightreign",
-        "steam_app_id": 2778580,
+        "steam_app_id": 2622380,
         "steam_folder": "ELDEN RING NIGHTREIGN",
         "config_relative": os.path.join("Game", "SeamlessCoop", "ersc_settings.ini"),
         "mod_extract_relative": "Game",
