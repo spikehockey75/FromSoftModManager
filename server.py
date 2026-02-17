@@ -600,18 +600,6 @@ def api_games():
     return jsonify(cfg)
 
 
-@app.route("/api/player-counts")
-def api_player_counts():
-    """Return current player counts for all games."""
-    cfg = load_config()
-    games = cfg.get("games", {})
-    counts = {}
-    for gid in games:
-        steam_app_id = games[gid].get("steam_app_id")
-        counts[gid] = get_steam_player_count(steam_app_id)
-    return jsonify(counts)
-
-
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     """Scan all drives for FromSoft co-op mods, update config."""
