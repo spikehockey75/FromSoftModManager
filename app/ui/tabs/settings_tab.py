@@ -176,6 +176,7 @@ class SettingsTab(QWidget):
         sb_layout.addStretch()
 
         self._undo_btn = QPushButton("Undo All")
+        self._undo_btn.setObjectName("btn_blue")
         self._undo_btn.setEnabled(False)
         self._undo_btn.clicked.connect(self._on_undo)
         sb_layout.addWidget(self._undo_btn)
@@ -186,7 +187,7 @@ class SettingsTab(QWidget):
         sb_layout.addWidget(self._reset_btn)
 
         self._save_btn = QPushButton("Save Changes")
-        self._save_btn.setObjectName("btn_success")
+        self._save_btn.setObjectName("btn_accent")
         self._save_btn.setEnabled(False)
         self._save_btn.clicked.connect(self._on_save)
         sb_layout.addWidget(self._save_btn)

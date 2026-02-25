@@ -249,10 +249,56 @@ def get_me3_profile_path(game_id: str, me3_exe_path: str) -> str | None:
     return path if os.path.isfile(path) else None
 
 
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    return _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+
+
+def _get_me3_log_dir() -> str:
+    """Return the ME3 data logs directory."""
+    return os.path.join(
+        os.environ.get("LOCALAPPDATA", ""),
+        "garyttierney", "me3", "data", "logs",
+    )
+
+
+def _check_me3_log_for_errors(game_id: str, since_time: float) -> bool:
+    """Check the most recent ME3 log file for ERROR lines created after since_time.
+
+    Returns True if errors were found.
+    """
+    profile_name = f"{ME3_PROFILE_PREFIX}{game_id}"
+    log_dir = os.path.join(_get_me3_log_dir(), profile_name)
+    if not os.path.isdir(log_dir):
+        return False
+
+    try:
+        log_files = sorted(
+            (os.path.join(log_dir, f) for f in os.listdir(log_dir) if f.endswith(".log")),
+            key=os.path.getmtime,
+            reverse=True,
+        )
+    except OSError:
+        return False
+
+    for log_path in log_files[:1]:  # only check the newest
+        try:
+            if os.path.getmtime(log_path) < since_time:
+                return False
+            with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+            if "ERROR" in content or "panicked" in content:
+                return True
+        except OSError:
+            pass
+    return False
+
+
 def launch_game_with_me3(game_id: str, me3_path: str, terminal_callback=None) -> subprocess.Popen | None:
     """Launch a game using ME3 CLI.
 
-    Waits briefly for ME3 to finish attaching, then checks for errors.
+    Waits briefly for ME3 to finish attaching, then checks stdout and
+    ME3 log files for errors.
     Returns the Popen on success, None if ME3 failed (caller can fall back).
     """
     import threading
@@ -274,26 +320,29 @@ def launch_game_with_me3(game_id: str, me3_path: str, terminal_callback=None) ->
     if terminal_callback:
         terminal_callback(f"$ {' '.join(cmd)}")
 
+    launch_time = time.time()
+
     try:
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
 
-        # Read ME3 output to detect attach errors.  ME3 exits quickly on
-        # failure, so we collect output with a short timeout.
+        # Read ME3 output to detect attach errors.
+        # Use binary mode + manual decode to handle encoding issues on Windows.
         output_lines: list[str] = []
         has_error = False
 
         def _collect():
             nonlocal has_error
             try:
-                for line in proc.stdout:
-                    output_lines.append(line)
-                    if "ERROR" in line or "panicked" in line:
+                for raw_line in proc.stdout:
+                    line = raw_line.decode("utf-8", errors="replace")
+                    clean = _strip_ansi(line)
+                    output_lines.append(clean)
+                    if "ERROR" in clean or "panicked" in clean:
                         has_error = True
                 proc.stdout.close()
             except Exception:
@@ -304,6 +353,10 @@ def launch_game_with_me3(game_id: str, me3_path: str, terminal_callback=None) ->
 
         # Give ME3 a moment to start and report errors
         reader.join(timeout=6)
+
+        # Also check ME3 log files — stdout may be buffered but logs are flushed
+        if not has_error:
+            has_error = _check_me3_log_for_errors(game_id, launch_time)
 
         if has_error or (proc.poll() is not None and proc.returncode != 0):
             if terminal_callback:

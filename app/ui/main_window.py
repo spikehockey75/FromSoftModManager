@@ -303,8 +303,10 @@ class MainWindow(QMainWindow):
                 if proc:
                     method = "ME3"
                 else:
-                    # ME3 failed to attach — fall back to direct launcher
-                    method = "direct (ME3 attach failed)"
+                    # ME3 failed — it already started the game process (vanilla),
+                    # so don't try to launch again via direct launcher.
+                    pending.put(("launch_result", name, False, "ME3 failed — game may be running without mods"))
+                    return
             if not proc and launcher_path:
                 proc = launch_game_direct(launcher_path)
                 if not method:
@@ -349,6 +351,8 @@ class MainWindow(QMainWindow):
                         if method:
                             msg += f" ({method})"
                         self._terminal.log(msg, "success")
+                    elif method and "ME3 failed" in method:
+                        self._terminal.log(f"{name}: {method}", "warning")
                     else:
                         self._terminal.log(f"Failed to launch {name}", "error")
         except _queue.Empty:
