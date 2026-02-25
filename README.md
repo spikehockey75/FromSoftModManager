@@ -1,5 +1,5 @@
 # FromSoft Seamless Co-op Manager
-
+ 
 An all-in-one desktop tool for managing Seamless Co-op mods across multiple FromSoftware games. Install mods, configure settings, manage save files, launch co-op sessions, and create desktop shortcuts — all from a clean web-based dashboard running locally on your PC.
 
 > **Note:** This is a **manager tool only**. The Seamless Co-op mods themselves are created by [LukeYui](https://github.com/LukeYui). All credit for the actual mods goes to them — this project simply provides a convenient way to install, configure, and launch them.
@@ -27,7 +27,7 @@ An all-in-one desktop tool for managing Seamless Co-op mods across multiple From
 ---
 
 ## Supported Games
-
+![alt text](mod-installer.png) ![alt text](save-manager.png) ![alt text](settings-tab.png) ![alt text](dashboard.png)
 | Game | Co-op Mod | Nexus Mods |
 |------|-----------|------------|
 | **Armored Core 6: Fires of Rubicon** | AC6 Seamless Co-op | [Link](https://www.nexusmods.com/armoredcore6firesofrubicon/mods/3) |

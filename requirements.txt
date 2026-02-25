@@ -1,1 +1,5 @@
-flask
+PySide6>=6.6.0
+requests>=2.31.0
+tomli-w>=1.0.0
+tomlkit>=0.12.0
+pyinstaller>=6.0.0
