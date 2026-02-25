@@ -1,38 +1,42 @@
 # Contributing to FromSoft Mod Manager
 
-Thanks for your interest in contributing! This guide covers everything you need to get started.
+Thanks for your interest in contributing! This guide covers everything
+you need to get started.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| **UI** | PySide6 (Qt 6) | Native desktop widgets, dark QSS theme |
-| **Language** | Python 3.10+ | Type hints used throughout |
-| **Mod Loader** | [Mod Engine 3](https://github.com/garyttierney/me3) | CLI-based game launching with TOML profiles |
-| **Mod Source** | [Nexus Mods](https://www.nexusmods.com) | SSO auth + REST API for downloads |
-| **Packaging** | PyInstaller + Inno Setup | Single-directory bundle → Windows installer |
-| **Platform** | Windows only | Uses `%APPDATA%`, `%LOCALAPPDATA%`, Steam registry, PowerShell |
+| Layer          | Technology                                          | Notes                                                          |
+|----------------|-----------------------------------------------------|----------------------------------------------------------------|
+| **UI**         | PySide6 (Qt 6)                                      | Native desktop widgets, dark QSS theme                         |
+| **Language**   | Python 3.10+                                        | Type hints used throughout                                     |
+| **Mod Loader** | [Mod Engine 3](https://github.com/garyttierney/me3) | CLI-based game launching with TOML profiles                    |
+| **Mod Source** | [Nexus Mods](https://www.nexusmods.com)             | SSO auth + REST API for downloads                              |
+| **Packaging**  | PyInstaller + Inno Setup                            | Single-directory bundle then Windows installer                 |
+| **Platform**   | Windows only                                        | Uses `%APPDATA%`, `%LOCALAPPDATA%`, Steam registry, PowerShell |
 
 ---
 
 ## Getting Set Up
 
 1. **Clone the repo**
-   ```
+
+   ```bash
    git clone https://github.com/spikehockey75/FromSoftSeamlessCoOpManager.git
    cd FromSoftSeamlessCoOpManager
    ```
 
 2. **Create a virtual environment and install dependencies**
-   ```
+
+   ```bash
    python -m venv .venv
    .venv\Scripts\pip install -r requirements.txt
    ```
 
 3. **Run the app**
-   ```
+
+   ```bash
    .venv\Scripts\python main.py
    ```
 
@@ -42,7 +46,7 @@ Thanks for your interest in contributing! This guide covers everything you need 
 
 ## Project Structure
 
-```
+```text
 main.py                          Entry point
 VERSION                          App version string
 requirements.txt                 Python dependencies
@@ -66,7 +70,7 @@ app/
     ├── main_window.py           Main window with sidebar + content split
     ├── sidebar.py               Game list, player counts, Nexus widget
     ├── game_page.py             Per-game tab container
-    ├── nexus_widget.py           Nexus auth widget (SSO + manual key)
+    ├── nexus_widget.py          Nexus auth widget (SSO + manual key)
     ├── terminal_widget.py       Log output panel
     ├── tabs/
     │   ├── launch_tab.py        Game launcher with cover art and player count
@@ -95,25 +99,38 @@ build/
 
 ### Key areas
 
-- **`app/config/game_definitions.py`** — Dictionary defining each supported game (Steam folder, app ID, config paths, defaults, Nexus info). This is where you add new games.
-- **`app/core/game_scanner.py`** — Discovers Steam libraries across all drives via registry and drive probing.
-- **`app/core/me3_service.py`** — ME3 CLI wrapper: profile writing, game launching, ME3 install/update. See also `ME3_GAME_MAP` for game ID mappings.
-- **`app/core/me2_migrator.py`** — Imports mods from Mod Engine 2 configs, existing ME3 profiles, and game folder scans.
-- **`app/core/mod_installer.py`** — Archive extraction (zip/7z/rar), INI backup/merge, mod installation workflow.
-- **`app/ui/tabs/mods_tab.py`** — Mod management UI: install, update, enable/disable, trending mods, Nexus integration.
-- **`resources/dark_theme.qss`** — App-wide dark theme. Uses `#0e0e18` background, `#e94560` accent.
+- **`app/config/game_definitions.py`** — Dictionary defining each
+  supported game (Steam folder, app ID, config paths, defaults, Nexus
+  info). This is where you add new games.
+- **`app/core/game_scanner.py`** — Discovers Steam libraries across
+  all drives via registry and drive probing.
+- **`app/core/me3_service.py`** — ME3 CLI wrapper: profile writing,
+  game launching, ME3 install/update. See also `ME3_GAME_MAP` for
+  game ID mappings.
+- **`app/core/me2_migrator.py`** — Imports mods from Mod Engine 2
+  configs, existing ME3 profiles, and game folder scans.
+- **`app/core/mod_installer.py`** — Archive extraction (zip/7z/rar),
+  INI backup/merge, mod installation workflow.
+- **`app/ui/tabs/mods_tab.py`** — Mod management UI: install, update,
+  enable/disable, trending mods, Nexus integration.
+- **`resources/dark_theme.qss`** — App-wide dark theme. Uses
+  `#0e0e18` background, `#e94560` accent.
 
 ---
 
 ## Adding a New Game
 
-1. **Add a game definition** in `app/config/game_definitions.py` → `GAME_DEFINITIONS`:
+1. **Add a game definition** in
+   `app/config/game_definitions.py` → `GAME_DEFINITIONS`:
+
    ```python
    "new_id": {
        "name": "Game Title",
        "steam_app_id": 123456,
        "steam_folder": "GAME FOLDER NAME",
-       "config_relative": os.path.join("Game", "ModFolder", "mod_settings.ini"),
+       "config_relative": os.path.join(
+           "Game", "ModFolder", "mod_settings.ini"
+       ),
        "mod_extract_relative": "Game",
        "save_appdata_folder": "GameSaveFolder",
        "save_prefix": "GS0000",
@@ -124,7 +141,9 @@ build/
        "nexus_mod_id": 123,
        "nexus_url": "https://www.nexusmods.com/gamename/mods/123",
        "zip_pattern": r"game.*seamless.*co-?op.*\.zip$",
-       "launcher_relative": os.path.join("Game", "ModFolder", "mod_launcher.exe"),
+       "launcher_relative": os.path.join(
+           "Game", "ModFolder", "mod_launcher.exe"
+       ),
        "mod_marker_relative": os.path.join("Game", "ModFolder"),
        "me3_game_name": "gamename",
        "defaults": {
@@ -133,12 +152,15 @@ build/
    }
    ```
 
-2. **Add ME3 mapping** in `app/core/me3_service.py` → `ME3_GAME_MAP`:
+2. **Add ME3 mapping** in
+   `app/core/me3_service.py` → `ME3_GAME_MAP`:
+
    ```python
    "new_id": "me3gamename",
    ```
 
-3. **Test** by installing the game, then clicking **Scan Games** in the sidebar. The UI builds dynamically from the definitions.
+3. **Test** by installing the game, then clicking **Scan Games** in
+   the sidebar. The UI builds dynamically from the definitions.
 
 ---
 
@@ -148,22 +170,27 @@ build/
 
 - **PySide6** for all UI — no web views, no HTML
 - Use `os.path` for file path operations (Windows compatibility)
-- Background work uses `threading.Thread` with `queue.SimpleQueue` for thread-safe UI updates
+- Background work uses `threading.Thread` with
+  `queue.SimpleQueue` for thread-safe UI updates
 - Signals (`PySide6.QtCore.Signal`) for cross-widget communication
 - Lazy imports inside methods to keep startup fast
 - `try/except` with meaningful fallbacks for file operations
 
 ### UI / Theme
 
-- All styling via `resources/dark_theme.qss` and inline `setStyleSheet()` calls
-- Dark theme: `#0e0e18` background, `#1a1a2e` cards, `#e94560` accent, `#4ecca3` success
-- Object names like `btn_accent`, `btn_success`, `card` for QSS targeting
+- All styling via `resources/dark_theme.qss` and inline
+  `setStyleSheet()` calls
+- Dark theme: `#0e0e18` background, `#1a1a2e` cards,
+  `#e94560` accent, `#4ecca3` success
+- Object names like `btn_accent`, `btn_success`, `card`
+  for QSS targeting
 - No emojis in UI text unless specifically requested
 
 ### General
 
 - Windows-only is fine — this targets Steam on Windows
-- No additional dependencies unless necessary (add to `requirements.txt` if needed)
+- No additional dependencies unless necessary (add to
+  `requirements.txt` if needed)
 - Keep logic in `app/core/` as pure Python, UI in `app/ui/`
 
 ---
@@ -171,11 +198,13 @@ build/
 ## Building the Installer
 
 ### Step 1: Build with PyInstaller
-```
+
+```bash
 .venv\Scripts\python build\build.py
 ```
 
 ### Step 2: Create installer with Inno Setup
+
 1. Install [Inno Setup 6+](https://jrsoftware.org/isinfo.php)
 2. Open `build/installer.iss` and compile (F9)
 3. Output: `dist/FromSoftModManager_Setup_v*.exe`
@@ -189,12 +218,14 @@ There's no automated test suite currently. To test your changes:
 1. **Run the app** and verify the sidebar loads with detected games
 2. **Test each tab** on at least one game:
    - **Mods:** install, update, enable/disable, add via Nexus URL
-   - **ME3 Profile:** verify profile viewer shows correct DLLs and packages
+   - **ME3 Profile:** verify profile viewer shows correct DLLs
+     and packages
    - **Saves:** list files, backup, restore, transfer
    - **Launch:** verify game starts via ME3
 3. **Test edge cases:**
    - No games installed (sidebar should show "Scan Games" prompt)
-   - Game installed but mod not installed (Mods tab should offer install)
+   - Game installed but mod not installed (Mods tab should offer
+     install)
    - Multiple Steam libraries on different drives
    - Fresh install (no `config.json`) — auto-detection should work
 
@@ -202,8 +233,10 @@ There's no automated test suite currently. To test your changes:
 
 ## Credits
 
-- **Seamless Co-op mods** by [LukeYui](https://github.com/LukeYui)
-- **Mod Engine 3** by [Gary Tierney](https://github.com/garyttierney/me3)
+- **Seamless Co-op mods** by
+  [LukeYui](https://github.com/LukeYui)
+- **Mod Engine 3** by
+  [Gary Tierney](https://github.com/garyttierney/me3)
 
 ---
 
@@ -212,4 +245,5 @@ There's no automated test suite currently. To test your changes:
 1. Fork the repo and create a feature branch
 2. Make your changes following the conventions above
 3. Test manually on your own machine
-4. Open a pull request with a clear description of what changed and why
+4. Open a pull request with a clear description of what
+   changed and why
