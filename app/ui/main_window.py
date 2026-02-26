@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                 QStackedWidget, QProgressDialog, QDialog,
                                 QApplication, QSizePolicy)
 from PySide6.QtCore import Qt, Signal, QThread, QObject, QTimer, QSize
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QShortcut, QKeySequence
 
 from app.config.config_manager import ConfigManager
 from app.core.game_scanner import scan_for_games
@@ -112,9 +112,16 @@ class MainWindow(QMainWindow):
 
         root.addWidget(self._splitter, stretch=1)
 
-        # ── Terminal ───────────────────────────────────────────
+        # ── Terminal (hidden by default, Ctrl+` to toggle) ─────
         self._terminal = TerminalWidget()
+        self._terminal.setVisible(False)
         root.addWidget(self._terminal)
+
+        shortcut = QShortcut(QKeySequence("Ctrl+`"), self)
+        shortcut.activated.connect(self._toggle_terminal)
+
+    def _toggle_terminal(self):
+        self._terminal.setVisible(not self._terminal.isVisible())
 
     def _build_landing(self) -> QWidget:
         w = QWidget()
