@@ -40,7 +40,7 @@ jobs:
         run: choco install innosetup -y --no-progress
 
       - name: Compile installer
-        run: iscc build\installer.iss
+        run: iscc "/DAppVersion=${{ steps.version.outputs.version }}" build\installer.iss
 
       - name: Create portable zip
         shell: bash
