@@ -864,9 +864,10 @@ class ModsTab(QWidget):
 
             dl = svc.download_latest_mod(game_id, fake_gdef, temp_dir, progress_callback=_cb)
             if not dl.get("success"):
-                pending.put(("install_done", mod_id,
-                             {"success": False, "message": dl.get("error", "Download failed")},
-                             {}))
+                fail = {"success": False, "message": dl.get("error", "Download failed")}
+                if dl.get("requires_premium"):
+                    fail["requires_premium"] = True
+                pending.put(("install_done", mod_id, fail, {}))
                 return
             zip_path = dl["zip_path"]
             # Prefer Nexus API version > file metadata > zip-extracted
@@ -972,11 +973,42 @@ class ModsTab(QWidget):
             if mod_dict.get("nexus_mod_id") and self._config.get_nexus_api_key():
                 self._spawn_update_check(mod_dict)
         else:
+            if result.get("requires_premium"):
+                self._handle_premium_fallback(mod_id)
+                return
             # Update the card to show the error
             card = self._cards.get(mod_id) or self._trending_cards.get(mod_id)
             if card:
                 card.on_install_done(result, version)
             self.log_message.emit(result.get("message", "Install failed"), "error")
+
+    # ------------------------------------------------------------------
+    # Premium fallback — open browser + prompt for zip
+    # ------------------------------------------------------------------
+    def _handle_premium_fallback(self, mod_id: str):
+        """Open browser to Nexus and prompt user to select a downloaded file."""
+        import webbrowser
+        card = self._cards.get(mod_id) or self._trending_cards.get(mod_id)
+        if card:
+            card.set_installing(False)
+        mod = card.mod if card else {}
+        domain = mod.get("nexus_domain", "")
+        nid = mod.get("nexus_mod_id", 0)
+        nexus_url = f"https://www.nexusmods.com/{domain}/mods/{nid}?tab=files" if domain and nid else ""
+        if nexus_url:
+            webbrowser.open(nexus_url)
+        self.log_message.emit(
+            "Nexus Premium required for direct downloads. "
+            "Opening mod page — download the file, then select it.",
+            "warning"
+        )
+        downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+        path, _ = QFileDialog.getOpenFileName(
+            self, f"Select downloaded archive for {mod.get('name', mod_id)}", downloads,
+            "Archives (*.zip *.7z *.rar);;All files (*)"
+        )
+        if path:
+            self._run_zip_install(mod_id, mod, path)
 
     # ------------------------------------------------------------------
     # Update
@@ -1028,8 +1060,10 @@ class ModsTab(QWidget):
 
             dl = svc.download_latest_mod(game_id, fake_gdef, temp_dir, progress_callback=_cb)
             if not dl.get("success"):
-                pending.put(("update_done", mod_id,
-                             {"success": False, "message": dl.get("error", "Download failed")}, ""))
+                fail = {"success": False, "message": dl.get("error", "Download failed")}
+                if dl.get("requires_premium"):
+                    fail["requires_premium"] = True
+                pending.put(("update_done", mod_id, fail, ""))
                 return
 
             # If migrating, read old INI settings before extraction overwrites them
@@ -1078,6 +1112,9 @@ class ModsTab(QWidget):
         threading.Thread(target=_work, daemon=True).start()
 
     def _on_update_done(self, mod_id: str, result: dict, version: str):
+        if not result.get("success") and result.get("requires_premium"):
+            self._handle_premium_fallback(mod_id)
+            return
         # version already has API-first priority from _do_update; fall back to zip-extracted
         effective_version = version or result.get("version") or ""
         card = self._cards.get(mod_id)

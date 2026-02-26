@@ -5,6 +5,7 @@ Shows a progress bar during download and install, then closes on success.
 
 import os
 import threading
+import webbrowser
 import queue as _queue
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QLineEdit, QFileDialog,
@@ -231,6 +232,9 @@ class AddModDialog(QDialog):
                 elif tag == "done":
                     _, result_dict = msg
                     self._on_done(result_dict)
+                elif tag == "premium_fallback":
+                    _, mod_name, nexus_url = msg
+                    self._on_premium_fallback(mod_name, nexus_url)
                 elif tag == "error":
                     _, error_msg = msg
                     self._on_error(error_msg)
@@ -255,6 +259,29 @@ class AddModDialog(QDialog):
         self._install_btn.setEnabled(True)
         self._zip_toggle.setEnabled(True)
         self._zip_panel.setEnabled(True)
+
+    def _on_premium_fallback(self, mod_name: str, nexus_url: str):
+        """Premium required — open browser to Nexus and show zip fallback."""
+        if self._poll_timer:
+            self._poll_timer.stop()
+        self._progress_panel.setVisible(False)
+        webbrowser.open(nexus_url)
+        self._error_lbl.setText(
+            "Nexus Premium is required for direct API downloads.\n"
+            "The mod page has been opened in your browser — download "
+            "the file manually, then select it below."
+        )
+        self._error_lbl.setStyleSheet("font-size:11px;color:#ff9800;")
+        self._error_lbl.setVisible(True)
+        self._nexus_edit.setEnabled(True)
+        self._install_btn.setEnabled(True)
+        self._zip_toggle.setEnabled(True)
+        self._zip_panel.setEnabled(True)
+        # Auto-expand zip panel and pre-fill mod name
+        if not self._zip_panel.isVisible():
+            self._toggle_zip()
+        if not self._zip_name_edit.text().strip():
+            self._zip_name_edit.setText(mod_name)
 
     # ── Nexus install flow ──────────────────────────────────
 
@@ -298,10 +325,11 @@ class AddModDialog(QDialog):
             dl = svc.download_latest_mod(game_id, fake_gdef, temp_dir,
                                          progress_callback=_cb)
             if not dl.get("success"):
-                err = dl.get("error", "Download failed")
                 if dl.get("requires_premium"):
-                    err += "\n\nNexus Premium is required for direct API downloads."
-                q.put(("error", err))
+                    nexus_url = f"https://www.nexusmods.com/{domain}/mods/{nexus_mod_id}?tab=files"
+                    q.put(("premium_fallback", mod_name, nexus_url))
+                else:
+                    q.put(("error", dl.get("error", "Download failed")))
                 return
 
             # 3. Extract / install
