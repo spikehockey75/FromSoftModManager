@@ -10,8 +10,22 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QScrollArea, QFrame, QProgressBar,
                                 QFileDialog, QDialog, QSizePolicy, QInputDialog,
                                 QLineEdit)
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QTimer, QSize
+from PySide6.QtGui import QIcon, QFont, QPixmap, QPainter, QColor
 from app.config.config_manager import ConfigManager
+
+_MDL2 = "Segoe MDL2 Assets"
+
+
+def _mdl2_icon(char: str, size: int = 16, color: str = "#c0c0d8") -> QIcon:
+    px = QPixmap(size, size)
+    px.fill(QColor("transparent"))
+    p = QPainter(px)
+    p.setFont(QFont(_MDL2, int(size * 0.75)))
+    p.setPen(QColor(color))
+    p.drawText(px.rect(), Qt.AlignCenter, char)
+    p.end()
+    return QIcon(px)
 from app.config.game_definitions import GAME_DEFINITIONS
 from app.core.mod_installer import install_mod_from_zip
 from app.core.me3_service import write_me3_profile, find_me3_executable, ME3_GAME_MAP, slugify
@@ -105,41 +119,47 @@ class _ModCard(QFrame):
         top.addWidget(self._ver_lbl)
         top.addStretch()
 
-        # Manage button (gear icon) — installed mods with INI settings
-        self._manage_btn = QPushButton("\u2699")
+        # Manage button (cog wheel) — installed mods with INI settings
+        self._manage_btn = QPushButton()
+        self._manage_btn.setIcon(_mdl2_icon("\uE713", 16, "#c0c0d8"))
+        self._manage_btn.setIconSize(QSize(16, 16))
         self._manage_btn.setFixedSize(30, 30)
         self._manage_btn.setToolTip("Manage Settings")
         self._manage_btn.setStyleSheet(
-            "QPushButton{font-size:14px;background:#1e1e3a;color:#c0c0d8;"
+            "QPushButton{background:#1e1e3a;"
             "border:1px solid #3a3a5a;border-radius:6px;}"
-            "QPushButton:hover{background:#2a2a4a;border-color:#7b8cde;color:#7b8cde;}"
+            "QPushButton:hover{background:#2a2a4a;border-color:#7b8cde;}"
         )
         self._manage_btn.clicked.connect(
             lambda: self._pending.put(("manage", self._mod["id"]))
         )
         top.addWidget(self._manage_btn)
 
-        # Uninstall button (X icon) — installed mods without INI
-        self._uninstall_btn = QPushButton("\u2715")
+        # Uninstall button (delete icon) — installed mods without INI
+        self._uninstall_btn = QPushButton()
+        self._uninstall_btn.setIcon(_mdl2_icon("\uE74D", 16, "#e74c3c"))
+        self._uninstall_btn.setIconSize(QSize(16, 16))
         self._uninstall_btn.setFixedSize(30, 30)
         self._uninstall_btn.setToolTip("Uninstall")
         self._uninstall_btn.setStyleSheet(
-            "QPushButton{font-size:14px;background:transparent;color:#e74c3c;"
+            "QPushButton{background:transparent;"
             "border:1px solid #e74c3c;border-radius:6px;}"
-            "QPushButton:hover{background:#e74c3c;color:#fff;}"
+            "QPushButton:hover{background:#e74c3c;}"
         )
         self._uninstall_btn.clicked.connect(
             lambda: self._pending.put(("uninstall", self._mod["id"]))
         )
         top.addWidget(self._uninstall_btn)
 
-        # Update button (up arrow) — visible only when update available
-        self._update_btn = QPushButton("\u2b06")
+        # Update button (sync icon) — visible only when update available
+        self._update_btn = QPushButton()
+        self._update_btn.setIcon(_mdl2_icon("\uE72C", 16, "#ff9800"))
+        self._update_btn.setIconSize(QSize(16, 16))
         self._update_btn.setFixedSize(30, 30)
         self._update_btn.setStyleSheet(
-            "QPushButton{font-size:14px;background:transparent;color:#ff9800;"
+            "QPushButton{background:transparent;"
             "border:1px solid #ff9800;border-radius:6px;}"
-            "QPushButton:hover{background:#ff9800;color:#fff;}"
+            "QPushButton:hover{background:#ff9800;}"
         )
         self._update_btn.clicked.connect(
             lambda: self._pending.put(("update", self._mod["id"]))
@@ -1048,10 +1068,29 @@ class ModsTab(QWidget):
         if nexus_url:
             webbrowser.open(nexus_url)
         self.log_message.emit(
-            "Nexus Premium required for direct downloads. "
-            "Opening mod page — download the file, then select it.",
+            "Free Nexus account — opening mod page in your browser.",
             "warning"
         )
+        from PySide6.QtWidgets import QMessageBox
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle("Download Mod Manually")
+        msg.setText(
+            f"<b>Download \"{mod.get('name', mod_id)}\" from Nexus Mods</b>"
+        )
+        msg.setInformativeText(
+            "The mod page has been opened in your browser.\n\n"
+            "1. Click the FILES tab on the Nexus page\n"
+            "2. Click \"Manual Download\" on the file you want\n"
+            "3. Wait for the download to finish\n"
+            "4. Click OK below, then browse to the downloaded\n"
+            "   .zip / .7z / .rar file (usually in your Downloads folder)\n\n"
+            "Tip: Nexus Premium members get one-click installs\n"
+            "directly from the app."
+        )
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        if msg.exec() != QMessageBox.Ok:
+            return
         downloads = os.path.join(os.path.expanduser("~"), "Downloads")
         path, _ = QFileDialog.getOpenFileName(
             self, f"Select downloaded archive for {mod.get('name', mod_id)}", downloads,

@@ -9,9 +9,23 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QFrame, QScrollArea, QSizePolicy,
                                 QSpacerItem)
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
-from PySide6.QtGui import QPixmap, QIcon, QFont
+from PySide6.QtGui import QPixmap, QIcon, QFont, QPainter, QColor
 
 from app.config.config_manager import ConfigManager
+
+# Windows 11 native icon font
+_MDL2 = "Segoe MDL2 Assets"
+
+
+def _mdl2_icon(char: str, size: int = 16, color: str = "#c0c0d8") -> QIcon:
+    px = QPixmap(size, size)
+    px.fill(QColor("transparent"))
+    p = QPainter(px)
+    p.setFont(QFont(_MDL2, int(size * 0.75)))
+    p.setPen(QColor(color))
+    p.drawText(px.rect(), Qt.AlignCenter, char)
+    p.end()
+    return QIcon(px)
 from app.ui.nexus_widget import NexusWidget
 
 
@@ -175,13 +189,15 @@ class Sidebar(QWidget):
         mgmt_layout.setContentsMargins(6, 6, 6, 6)
         mgmt_layout.setSpacing(2)
 
-        scan_btn = QPushButton("🔍  Scan Games")
+        scan_btn = QPushButton("Scan Games")
+        scan_btn.setIcon(_mdl2_icon("\uE721", 18))
         scan_btn.setObjectName("sidebar_mgmt_btn")
         scan_btn.setFixedHeight(36)
         scan_btn.clicked.connect(self.scan_requested)
         mgmt_layout.addWidget(scan_btn)
 
-        settings_btn = QPushButton("⚙  Settings")
+        settings_btn = QPushButton("Settings")
+        settings_btn.setIcon(_mdl2_icon("\uE713", 18))
         settings_btn.setObjectName("sidebar_mgmt_btn")
         settings_btn.setFixedHeight(36)
         settings_btn.clicked.connect(self.settings_requested)

@@ -91,7 +91,8 @@ class LaunchTab(QWidget):
             "background:#181830;border:1px solid #2a2a4a;border-radius:8px;"
             "font-size:40px;color:#3a3a5a;"
         )
-        self._cover.setText("🎮")
+        self._cover.setFont(QFont("Segoe MDL2 Assets", 32))
+        self._cover.setText("\uE7FC")
         center_layout.addWidget(self._cover, alignment=Qt.AlignHCenter)
 
         # Game name

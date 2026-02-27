@@ -5,7 +5,21 @@ Per-game page with Mods / ME3 Profile / Saves tabs.
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QTabWidget, QFrame)
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
 from app.config.config_manager import ConfigManager
+
+_MDL2 = "Segoe MDL2 Assets"
+
+
+def _mdl2_icon(char: str, size: int = 16, color: str = "#c0c0d8") -> QIcon:
+    px = QPixmap(size, size)
+    px.fill(QColor("transparent"))
+    p = QPainter(px)
+    p.setFont(QFont(_MDL2, int(size * 0.75)))
+    p.setPen(QColor(color))
+    p.drawText(px.rect(), Qt.AlignCenter, char)
+    p.end()
+    return QIcon(px)
 from app.core.me3_service import ME3_GAME_MAP
 from app.ui.tabs.settings_tab import ME3ProfileTab
 from app.ui.tabs.saves_tab import SavesTab
@@ -36,16 +50,16 @@ class GamePage(QWidget):
         self._mods_tab = ModsTab(self._game_id, self._game_info, self._config)
         self._saves_tab = SavesTab(self._game_id, self._game_info, self._config)
 
-        self._tabs.addTab(self._mods_tab, "📦  Mods")
+        self._tabs.addTab(self._mods_tab, _mdl2_icon("\uE7B8", 16), "Mods")
 
         # ME3 Profile tab — only for ME3-supported games
         self._profile_tab = None
         if self._game_id in ME3_GAME_MAP:
             self._profile_tab = ME3ProfileTab(self._game_id, self._game_info, self._config)
-            self._tabs.addTab(self._profile_tab, "⚙  ME3 Profile")
+            self._tabs.addTab(self._profile_tab, _mdl2_icon("\uE713", 16), "ME3 Profile")
             self._profile_tab.log_message.connect(self.log_message)
 
-        self._tabs.addTab(self._saves_tab, "💾  Saves")
+        self._tabs.addTab(self._saves_tab, _mdl2_icon("\uE74E", 16), "Saves")
 
         self._tabs.currentChanged.connect(self._on_tab_changed)
 

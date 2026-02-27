@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel,
                                 QPushButton, QDialog, QLineEdit, QDialogButtonBox,
                                 QFrame)
 from PySide6.QtCore import Qt, Signal, QTimer, QThread, QObject
-from PySide6.QtGui import QPixmap, QCursor
+from PySide6.QtGui import QPixmap, QCursor, QFont, QIcon, QPainter, QColor
 from app.config.config_manager import ConfigManager
 from app.services.nexus_service import NexusService
 from app.services.nexus_sso import NexusSSOClient
@@ -199,6 +199,7 @@ class NexusApiKeyDialog(QDialog):
 class NexusWidget(QWidget):
     """Top of sidebar — shows login button or logged-in user."""
     auth_changed = Signal(str)  # emits api_key on change
+    _avatar_ready = Signal(bytes)  # internal: avatar image data from bg thread
 
     def __init__(self, config: ConfigManager, parent=None):
         super().__init__(parent)
@@ -210,6 +211,7 @@ class NexusWidget(QWidget):
             QTimer.singleShot(500, self._revalidate_key)
 
     def _build(self):
+        self._avatar_ready.connect(self._on_avatar_ready)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(10, 10, 10, 10)
         self._layout.setSpacing(6)
@@ -240,9 +242,12 @@ class NexusWidget(QWidget):
 
         self._avatar_lbl = QLabel()
         self._avatar_lbl.setFixedSize(32, 32)
+        self._avatar_lbl.setAlignment(Qt.AlignCenter)
         self._avatar_lbl.setStyleSheet(
             "background:#2a2a4a;border-radius:16px;border:1px solid #3a3a5a;"
         )
+        # Default person icon
+        self._set_default_avatar()
         ul.addWidget(self._avatar_lbl)
 
         user_info = QVBoxLayout()
@@ -257,6 +262,17 @@ class NexusWidget(QWidget):
         ul.addStretch()
 
         self._layout.addWidget(self._user_widget)
+
+    def _set_default_avatar(self):
+        """Render a person icon as the default avatar."""
+        px = QPixmap(32, 32)
+        px.fill(QColor("transparent"))
+        p = QPainter(px)
+        p.setFont(QFont("Segoe MDL2 Assets", 16))
+        p.setPen(QColor("#8888aa"))
+        p.drawText(px.rect(), Qt.AlignCenter, "\uE77B")  # Contact icon
+        p.end()
+        self._avatar_lbl.setPixmap(px)
 
     def _refresh(self):
         key = self._config.get_nexus_api_key()
@@ -273,6 +289,49 @@ class NexusWidget(QWidget):
             self._status_lbl.setStyleSheet(
                 "font-size:10px;color:#4ecca3;" if is_premium else "font-size:10px;color:#8888aa;"
             )
+            # Fetch profile photo in background
+            profile_url = user.get("profile_url", "")
+            if profile_url:
+                self._fetch_avatar(profile_url)
+        else:
+            self._set_default_avatar()
+
+    def _fetch_avatar(self, url: str):
+        """Download the Nexus profile image in the background."""
+        import urllib.request
+
+        def _work():
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "FromSoftModManager/2.0"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    self._avatar_ready.emit(resp.read())
+            except Exception:
+                pass
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_avatar_ready(self, data: bytes):
+        px = QPixmap()
+        px.loadFromData(data)
+        if not px.isNull():
+            scaled = px.scaled(32, 32, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            # Crop to center 32x32 if needed
+            if scaled.width() > 32 or scaled.height() > 32:
+                x = (scaled.width() - 32) // 2
+                y = (scaled.height() - 32) // 2
+                scaled = scaled.copy(x, y, 32, 32)
+            # Apply circular mask
+            from PySide6.QtGui import QPainterPath, QBrush
+            circle = QPixmap(32, 32)
+            circle.fill(QColor("transparent"))
+            p = QPainter(circle)
+            p.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, 32, 32)
+            p.setClipPath(path)
+            p.drawPixmap(0, 0, scaled)
+            p.end()
+            self._avatar_lbl.setPixmap(circle)
 
     def _revalidate_key(self):
         """Background check that the stored API key is still valid."""

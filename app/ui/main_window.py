@@ -12,7 +12,23 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
 from PySide6.QtCore import Qt, Signal, QThread, QObject, QTimer, QSize
 from PySide6.QtGui import QPixmap, QShortcut, QKeySequence
 
+from PySide6.QtGui import QFont as _QFont, QIcon as _QIcon, QPixmap as _QPixmap, QPainter as _QPainter, QColor as _QColor
 from app.config.config_manager import ConfigManager
+
+# Windows 11 native icon font — used for all UI icons
+_MDL2 = "Segoe MDL2 Assets"
+
+
+def _mdl2_icon(char: str, size: int = 16, color: str = "#c0c0d8") -> _QIcon:
+    """Render a Segoe MDL2 Assets glyph to a QIcon."""
+    px = _QPixmap(size, size)
+    px.fill(_QColor("transparent"))
+    p = _QPainter(px)
+    p.setFont(_QFont(_MDL2, int(size * 0.75)))
+    p.setPen(_QColor(color))
+    p.drawText(px.rect(), Qt.AlignCenter, char)
+    p.end()
+    return _QIcon(px)
 from app.core.game_scanner import scan_for_games
 from app.ui.sidebar import Sidebar
 from app.ui.game_page import GamePage
@@ -69,8 +85,8 @@ class MainWindow(QMainWindow):
         tb_layout = QHBoxLayout(title_bar)
         tb_layout.setContentsMargins(14, 0, 14, 0)
 
-        logo = QLabel("🎮")
-        logo.setStyleSheet("font-size:18px;")
+        logo = QLabel()
+        logo.setPixmap(_mdl2_icon("\uE7FC", 20, "#e0e0ec").pixmap(20, 20))
         tb_layout.addWidget(logo)
 
         app_name = QLabel("FromSoft Mod Manager")
@@ -106,10 +122,11 @@ class MainWindow(QMainWindow):
         )
         self._update_now_btn.clicked.connect(self._on_update_now)
         ub_layout.addWidget(self._update_now_btn)
-        dismiss_btn = QPushButton("✕")
+        dismiss_btn = QPushButton("\uE711")
+        dismiss_btn.setFont(_QFont(_MDL2, 10))
         dismiss_btn.setFixedSize(24, 24)
         dismiss_btn.setStyleSheet(
-            "QPushButton{font-size:12px;color:#8a8a6a;background:transparent;border:none;}"
+            "QPushButton{color:#8a8a6a;background:transparent;border:none;}"
             "QPushButton:hover{color:#b0d880;}"
         )
         dismiss_btn.setToolTip("Dismiss")
@@ -164,8 +181,9 @@ class MainWindow(QMainWindow):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(16)
 
-        icon = QLabel("🎮")
-        icon.setStyleSheet("font-size:56px;")
+        icon = QLabel("\uE7FC")
+        icon.setFont(_QFont(_MDL2, 48))
+        icon.setStyleSheet("color:#3a3a5a;")
         icon.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon)
 
@@ -179,7 +197,8 @@ class MainWindow(QMainWindow):
         subtitle.setAlignment(Qt.AlignCenter)
         layout.addWidget(subtitle)
 
-        scan_btn = QPushButton("🔍  Scan for Games")
+        scan_btn = QPushButton("Scan for Games")
+        scan_btn.setIcon(_mdl2_icon("\uE721", 20, "#ffffff"))
         scan_btn.setObjectName("btn_accent")
         scan_btn.setFixedWidth(200)
         scan_btn.setFixedHeight(44)

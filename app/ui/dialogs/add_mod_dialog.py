@@ -267,9 +267,15 @@ class AddModDialog(QDialog):
         self._progress_panel.setVisible(False)
         webbrowser.open(nexus_url)
         self._error_lbl.setText(
-            "Nexus Premium is required for direct API downloads.\n"
-            "The mod page has been opened in your browser — download "
-            "the file manually, then select it below."
+            "Free Nexus account — direct downloads require Premium.\n"
+            "The mod page has been opened in your browser.\n\n"
+            "Steps:\n"
+            "  1. Click the FILES tab on the Nexus page\n"
+            "  2. Click \"Manual Download\" on the file you want\n"
+            "  3. Wait for the download to finish\n"
+            "  4. Use the \"Install from ZIP\" section below to\n"
+            "     browse to the downloaded .zip / .7z / .rar file\n"
+            "     (usually in your Downloads folder)"
         )
         self._error_lbl.setStyleSheet("font-size:11px;color:#ff9800;")
         self._error_lbl.setVisible(True)

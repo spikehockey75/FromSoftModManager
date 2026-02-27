@@ -39,8 +39,9 @@ class ME3SetupDialog(QDialog):
 
         # Icon + title row
         title_row = QHBoxLayout()
-        icon_lbl = QLabel("⚙")
-        icon_lbl.setStyleSheet("font-size:32px;")
+        icon_lbl = QLabel("\uE713")
+        icon_lbl.setFont(QFont("Segoe MDL2 Assets", 24))
+        icon_lbl.setStyleSheet("color:#e0e0ec;")
         title_row.addWidget(icon_lbl)
 
         title = QLabel("Mod Engine 3 Required")

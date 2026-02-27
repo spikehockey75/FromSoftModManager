@@ -53,7 +53,7 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 // Detect existing install and show upgrade prompt
 function InitializeSetup(): Boolean;
 var
-  PrevVersion: String;
+  PrevVersion: AnsiString;
   VersionFile: String;
 begin
   Result := True;
