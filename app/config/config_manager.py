@@ -3,19 +3,46 @@ Configuration manager — handles app-level config (config.json) and QSettings.
 """
 
 import os
+import sys
 import json
 from datetime import datetime
 from pathlib import Path
 
 APP_NAME = "FromSoftModManager"
-_APP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# When running as a PyInstaller build, __file__ resolves inside _internal/
+# which is wrong for user data.  Use the exe directory instead so that
+# config.json and mods/ live next to the exe and persist across updates.
+if getattr(sys, "frozen", False):
+    _APP_DIR = os.path.dirname(sys.executable)
+else:
+    _APP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 CONFIG_FILE = os.path.join(_APP_DIR, "config.json")
 _DEFAULT_MODS_DIR = os.path.join(_APP_DIR, "mods")
 
 
 class ConfigManager:
     def __init__(self):
+        self._migrate_legacy_config()
         self._config = self._load()
+
+    # ------------------------------------------------------------------
+    # Migration
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _migrate_legacy_config():
+        """Move config.json out of _internal/ if it was created there by an
+        older build.  Only relevant for PyInstaller builds."""
+        if not getattr(sys, "frozen", False):
+            return
+        legacy = os.path.join(os.path.dirname(sys.executable), "_internal", "config.json")
+        if os.path.isfile(legacy) and not os.path.isfile(CONFIG_FILE):
+            try:
+                import shutil
+                shutil.move(legacy, CONFIG_FILE)
+            except OSError:
+                pass
 
     # ------------------------------------------------------------------
     # Low-level load / save
