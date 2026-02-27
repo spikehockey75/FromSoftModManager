@@ -4,7 +4,7 @@
 
 #define AppName "FromSoft Mod Manager"
 #ifndef AppVersion
-  #define AppVersion Trim(StringChange(StringChange(FileRead(AddBackslash(SourcePath) + "..\VERSION"), Chr(13), ""), Chr(10), ""))
+  #include "_version.iss"
 #endif
 #define AppPublisher "FromSoftModManager"
 #define AppURL "https://github.com/spikehockey75/FromSoftModManager"

@@ -410,6 +410,27 @@ class MainWindow(QMainWindow):
 
         threading.Thread(target=_launch, daemon=True).start()
 
+    def _find_coop_ini(self, game_id: str, game_info: dict, gdef: dict) -> str | None:
+        """Locate the co-op settings INI, checking the mod's stored path
+        first (ME3 mod dir), then falling back to the game directory."""
+        # Check ME3 mod directory first (where Manage dialog edits)
+        coop_id = f"{game_id}-coop"
+        for m in self._config.get_game_mods(game_id):
+            if m["id"] == coop_id and m.get("path") and os.path.isdir(m["path"]):
+                for root, _dirs, files in os.walk(m["path"]):
+                    for f in files:
+                        if f.endswith(".ini"):
+                            return os.path.join(root, f)
+                break
+        # Fall back to game directory
+        config_rel = gdef.get("config_relative", "")
+        install_path = game_info.get("install_path", "")
+        if config_rel and install_path:
+            candidate = os.path.join(install_path, config_rel)
+            if os.path.isfile(candidate):
+                return candidate
+        return None
+
     def _check_coop_password(self, game_id: str, game_info: dict) -> bool:
         """Check if the co-op INI has an empty cooppassword. Prompt if so.
 
@@ -420,13 +441,8 @@ class MainWindow(QMainWindow):
         if "cooppassword" not in gdef.get("defaults", {}):
             return True
 
-        config_rel = gdef.get("config_relative", "")
-        install_path = game_info.get("install_path", "")
-        if not config_rel or not install_path:
-            return True
-
-        ini_path = os.path.join(install_path, config_rel)
-        if not os.path.isfile(ini_path):
+        ini_path = self._find_coop_ini(game_id, game_info, gdef)
+        if not ini_path:
             return True
 
         from app.core.ini_parser import read_ini_value

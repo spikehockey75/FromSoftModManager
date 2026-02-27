@@ -52,6 +52,15 @@ if os.path.isfile(ICON):
 
 cmd.append(ENTRY_POINT)
 
+# Generate _version.iss for Inno Setup (avoids ISPP compatibility issues)
+version_file = os.path.join(BASE_DIR, "VERSION")
+with open(version_file, "r", encoding="utf-8") as f:
+    app_version = f.read().strip()
+version_iss = os.path.join(BASE_DIR, "build", "_version.iss")
+with open(version_iss, "w", encoding="utf-8") as f:
+    f.write(f'#define AppVersion "{app_version}"\n')
+print(f"Generated {version_iss} (v{app_version})")
+
 print(f"Building {APP_NAME}...")
 print(f"Entry: {ENTRY_POINT}")
 result = subprocess.run(cmd, cwd=BASE_DIR)

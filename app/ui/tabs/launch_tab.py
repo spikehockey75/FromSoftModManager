@@ -195,19 +195,32 @@ class LaunchTab(QWidget):
             self._launch_btn.setText("▶  Launch Co-op")
         ))
 
+    def _find_coop_ini(self) -> str | None:
+        """Locate the co-op settings INI, checking the mod's stored path
+        first (ME3 mod dir), then falling back to the game directory."""
+        coop_id = f"{self._game_id}-coop"
+        for m in self._config.get_game_mods(self._game_id):
+            if m["id"] == coop_id and m.get("path") and os.path.isdir(m["path"]):
+                for root, _dirs, files in os.walk(m["path"]):
+                    for f in files:
+                        if f.endswith(".ini"):
+                            return os.path.join(root, f)
+                break
+        config_rel = self._gdef.get("config_relative", "")
+        install_path = self._game_info.get("install_path", "")
+        if config_rel and install_path:
+            candidate = os.path.join(install_path, config_rel)
+            if os.path.isfile(candidate):
+                return candidate
+        return None
+
     def _check_coop_password(self) -> bool:
         """Check if the co-op INI has an empty cooppassword. Prompt if so."""
         if "cooppassword" not in self._gdef.get("defaults", {}):
             return True
 
-        config_rel = self._gdef.get("config_relative", "")
-        install_path = self._game_info.get("install_path", "")
-        if not config_rel or not install_path:
-            return True
-
-        import os
-        ini_path = os.path.join(install_path, config_rel)
-        if not os.path.isfile(ini_path):
+        ini_path = self._find_coop_ini()
+        if not ini_path:
             return True
 
         from app.core.ini_parser import read_ini_value, save_ini_settings

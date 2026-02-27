@@ -12,6 +12,7 @@ mods/
 
 # Build artifacts
 build/output/
+build/_version.iss
 build_pyinstaller/
 dist/
 *.spec
