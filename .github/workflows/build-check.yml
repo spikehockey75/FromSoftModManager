@@ -1,0 +1,58 @@
+name: Build Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build exe with PyInstaller
+        run: python build/build.py
+
+      - name: Verify exe exists
+        shell: bash
+        run: |
+          if [ -f "dist/FromSoftModManager/FromSoftModManager.exe" ]; then
+            echo "✅ PyInstaller build successful"
+          else
+            echo "❌ FromSoftModManager.exe not found"
+            exit 1
+          fi
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile installer
+        run: iscc "/DAppVersion=${{ steps.version.outputs.version }}" build\installer.iss
+
+      - name: Verify installer exists
+        shell: bash
+        run: |
+          INSTALLER="dist/FromSoftModManager_Setup_v${{ steps.version.outputs.version }}.exe"
+          if [ -f "$INSTALLER" ]; then
+            echo "✅ Installer build successful"
+          else
+            echo "❌ Installer not found at $INSTALLER"
+            exit 1
+          fi
