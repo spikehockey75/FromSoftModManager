@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read version
         id: version
@@ -24,6 +26,47 @@ jobs:
           VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes from commits
+        id: notes
+        shell: bash
+        run: |
+          # Find the previous tag
+          PREV_TAG=$(git tag --sort=-v:refname | head -n 1)
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+          echo "Previous tag: $PREV_TAG"
+          echo "Range: $RANGE"
+
+          # Build release notes from commit titles and descriptions
+          NOTES="## What's Changed"$'\n\n'
+          while IFS= read -r line; do
+            if [ -z "$line" ]; then
+              continue
+            fi
+            # Split at first | to get hash, title, and body
+            HASH=$(echo "$line" | cut -d'|' -f1)
+            TITLE=$(echo "$line" | cut -d'|' -f2)
+            BODY=$(echo "$line" | cut -d'|' -f3-)
+
+            NOTES+="- **${TITLE}** (\`${HASH}\`)"$'\n'
+            if [ -n "$BODY" ]; then
+              # Indent each line of the body
+              while IFS= read -r bline; do
+                bline=$(echo "$bline" | sed 's/^[[:space:]]*//')
+                if [ -n "$bline" ]; then
+                  NOTES+="  ${bline}"$'\n'
+                fi
+              done <<< "$BODY"
+            fi
+            NOTES+=$'\n'
+          done < <(git log "$RANGE" --pretty=format:"%h|%s|%b" --no-merges)
+
+          # Write to file to avoid escaping issues
+          echo "$NOTES" > release_notes.md
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -55,7 +98,7 @@ jobs:
           name: Release v${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
-          generate_release_notes: true
+          body_path: release_notes.md
           files: |
             dist/FromSoftModManager_Setup_v${{ steps.version.outputs.version }}.exe
             dist/FromSoftModManager_v${{ steps.version.outputs.version }}_portable.zip
