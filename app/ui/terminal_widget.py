@@ -2,8 +2,7 @@
 
 from datetime import datetime
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
-                                QLabel, QPushButton, QPlainTextEdit, QSizePolicy)
-from PySide6.QtCore import Qt, QTimer
+                                QLabel, QPushButton, QPlainTextEdit)
 from PySide6.QtGui import QTextCursor, QFont
 
 
@@ -12,7 +11,6 @@ class TerminalWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._collapsed = False
         self._build()
 
     def _build(self):
@@ -27,12 +25,14 @@ class TerminalWidget(QWidget):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(10, 0, 10, 0)
 
-        self._toggle_btn = QPushButton("▲  Output Log")
-        self._toggle_btn.setObjectName("sidebar_mgmt_btn")
-        self._toggle_btn.setFixedHeight(28)
-        self._toggle_btn.clicked.connect(self._toggle)
-        h_layout.addWidget(self._toggle_btn)
+        title = QLabel("Output Log")
+        title.setStyleSheet("font-size:11px;font-weight:600;color:#8888aa;")
+        h_layout.addWidget(title)
         h_layout.addStretch()
+
+        hint = QLabel("Ctrl+` to hide")
+        hint.setStyleSheet("font-size:10px;color:#555577;")
+        h_layout.addWidget(hint)
 
         clear_btn = QPushButton("Clear")
         clear_btn.setObjectName("sidebar_mgmt_btn")
@@ -51,12 +51,6 @@ class TerminalWidget(QWidget):
         font = QFont("Consolas", 10)
         self._text.setFont(font)
         layout.addWidget(self._text)
-
-    def _toggle(self):
-        self._collapsed = not self._collapsed
-        self._text.setVisible(not self._collapsed)
-        arrow = "▲" if not self._collapsed else "▼"
-        self._toggle_btn.setText(f"{arrow}  Output Log")
 
     def _clear(self):
         self._text.clear()
