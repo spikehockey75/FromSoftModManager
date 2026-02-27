@@ -49,7 +49,10 @@ def main():
 
     QCoreApplication.setApplicationName("FromSoft Mod Manager")
     QCoreApplication.setOrganizationName("FromSoftModManager")
-    QCoreApplication.setApplicationVersion("2.0.0")
+
+    # Read version from VERSION file instead of hardcoding
+    from app.services.update_service import get_current_version
+    QCoreApplication.setApplicationVersion(get_current_version())
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")  # base style; overridden by QSS
@@ -119,6 +122,17 @@ def main():
     from app.ui.main_window import MainWindow
     window = MainWindow(config)
     window.show()
+
+    # Background app update check
+    import threading
+    from app.services.update_service import check_for_update
+
+    def _check_app_update():
+        result = check_for_update()
+        if result.get("has_update"):
+            window._pending.put(("app_update", result))
+
+    threading.Thread(target=_check_app_update, daemon=True).start()
 
     sys.exit(app.exec())
 

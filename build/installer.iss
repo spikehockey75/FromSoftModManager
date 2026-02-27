@@ -50,6 +50,28 @@ Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+// Detect existing install and show upgrade prompt
+function InitializeSetup(): Boolean;
+var
+  PrevVersion: String;
+  VersionFile: String;
+begin
+  Result := True;
+  VersionFile := ExpandConstant('{localappdata}\FromSoftModManager\VERSION');
+  if FileExists(VersionFile) then
+  begin
+    LoadStringFromFile(VersionFile, PrevVersion);
+    PrevVersion := Trim(PrevVersion);
+    if PrevVersion <> '' then
+    begin
+      Result := (MsgBox(
+        '{#AppName} v' + PrevVersion + ' is already installed.' + #13#10 +
+        'Update to v{#AppVersion}?',
+        mbConfirmation, MB_YESNO) = IDYES);
+    end;
+  end;
+end;
+
 // Download and install ME3 if not already present
 procedure DownloadME3();
 var

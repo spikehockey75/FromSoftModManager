@@ -84,6 +84,41 @@ class MainWindow(QMainWindow):
 
         root.addWidget(title_bar)
 
+        # ── Update banner (hidden until update detected) ────────
+        self._update_banner = QFrame()
+        self._update_banner.setVisible(False)
+        self._update_banner.setFixedHeight(36)
+        self._update_banner.setStyleSheet(
+            "QFrame{background:#2d3a1e;border-bottom:1px solid #4a6a2a;}"
+        )
+        ub_layout = QHBoxLayout(self._update_banner)
+        ub_layout.setContentsMargins(14, 0, 14, 0)
+        self._update_lbl = QLabel("")
+        self._update_lbl.setStyleSheet("font-size:12px;color:#b0d880;font-weight:600;")
+        ub_layout.addWidget(self._update_lbl)
+        ub_layout.addStretch()
+        self._update_now_btn = QPushButton("Update Now")
+        self._update_now_btn.setFixedHeight(24)
+        self._update_now_btn.setStyleSheet(
+            "QPushButton{font-size:11px;color:#fff;background:#4a6a2a;"
+            "border:none;border-radius:4px;padding:2px 12px;font-weight:600;}"
+            "QPushButton:hover{background:#5a8a3a;}"
+        )
+        self._update_now_btn.clicked.connect(self._on_update_now)
+        ub_layout.addWidget(self._update_now_btn)
+        dismiss_btn = QPushButton("✕")
+        dismiss_btn.setFixedSize(24, 24)
+        dismiss_btn.setStyleSheet(
+            "QPushButton{font-size:12px;color:#8a8a6a;background:transparent;border:none;}"
+            "QPushButton:hover{color:#b0d880;}"
+        )
+        dismiss_btn.setToolTip("Dismiss")
+        dismiss_btn.clicked.connect(lambda: self._update_banner.setVisible(False))
+        ub_layout.addWidget(dismiss_btn)
+        root.addWidget(self._update_banner)
+
+        self._update_download_url = ""
+
         # ── Main content area (splitter) ───────────────────────
         self._splitter = QSplitter(Qt.Horizontal)
         self._splitter.setHandleWidth(1)
@@ -481,6 +516,22 @@ class MainWindow(QMainWindow):
                 elif tag == "update_check":
                     _, game_id, game_name, result = item
                     self._on_update_checked(game_id, game_name, result)
+                elif tag == "app_update":
+                    _, result = item
+                    latest = result.get("latest", "")
+                    self._update_download_url = result.get("download_url", "")
+                    self._update_lbl.setText(f"Update available: v{latest}")
+                    self._update_banner.setVisible(True)
+                    self._terminal.log(f"App update available: v{latest}", "warn")
+                elif tag == "app_update_done":
+                    _, result = item
+                    if result.get("success"):
+                        self._terminal.log("Installer launched — closing app…", "success")
+                        QApplication.quit()
+                    else:
+                        self._terminal.log(f"Update failed: {result.get('message', 'unknown error')}", "error")
+                        self._update_now_btn.setEnabled(True)
+                        self._update_now_btn.setText("Update Now")
                 elif tag == "launch_result":
                     _, name, success, method = item
                     if success:
@@ -502,6 +553,33 @@ class MainWindow(QMainWindow):
             latest = result.get("latest_version", "?")
             self._terminal.log(f"{game_name}: update available → v{latest}", "warning")
             self._sidebar.set_update_badge(game_id, True)
+
+    # ------------------------------------------------------------------
+    # App self-update
+    # ------------------------------------------------------------------
+    def _on_update_now(self):
+        """Download the latest installer and launch it."""
+        url = self._update_download_url
+        if not url:
+            self._terminal.log("No download URL available", "error")
+            return
+
+        self._update_now_btn.setEnabled(False)
+        self._update_now_btn.setText("Downloading…")
+        self._terminal.setVisible(True)
+        self._terminal.log("Downloading app update…", "info")
+        pending = self._pending
+
+        def _download():
+            from app.services.update_service import download_and_run_installer
+
+            def _progress(msg, pct):
+                pending.put(("log", msg, "info"))
+
+            result = download_and_run_installer(url, progress_callback=_progress)
+            pending.put(("app_update_done", result))
+
+        threading.Thread(target=_download, daemon=True).start()
 
     def _check_all_mod_updates(self):
         """Fire background update checks for all installed mods across all games."""

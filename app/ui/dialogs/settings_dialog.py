@@ -10,6 +10,7 @@ from app.config.config_manager import ConfigManager, _DEFAULT_MODS_DIR
 
 class SettingsDialog(QDialog):
     settings_saved = Signal()
+    _update_checked = Signal(object)  # internal: update check result from bg thread
 
     def __init__(self, config: ConfigManager, parent=None):
         super().__init__(parent)
@@ -120,6 +121,30 @@ class SettingsDialog(QDialog):
         mods_layout.addRow("", mods_help)
         layout.addWidget(mods_group)
 
+        # ── App Updates ────────────────────────────────────────
+        update_group = QGroupBox("App Updates")
+        update_layout = QFormLayout(update_group)
+        update_layout.setSpacing(10)
+
+        from app.services.update_service import get_current_version
+        version_lbl = QLabel(f"v{get_current_version()}")
+        version_lbl.setStyleSheet("font-size:12px;color:#e0e0ec;font-weight:600;")
+        update_layout.addRow("Current version:", version_lbl)
+
+        check_row = QHBoxLayout()
+        self._check_update_btn = QPushButton("Check for Updates")
+        self._check_update_btn.setObjectName("btn_blue")
+        self._check_update_btn.setFixedWidth(160)
+        self._check_update_btn.clicked.connect(self._check_for_updates)
+        check_row.addWidget(self._check_update_btn)
+        self._update_status_lbl = QLabel("")
+        self._update_status_lbl.setStyleSheet("font-size:11px;color:#8888aa;")
+        check_row.addWidget(self._update_status_lbl)
+        check_row.addStretch()
+        update_layout.addRow("", check_row)
+
+        layout.addWidget(update_group)
+
         # ── Buttons ───────────────────────────────────────────
         btn_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         btn_box.accepted.connect(self._save)
@@ -194,6 +219,35 @@ class SettingsDialog(QDialog):
         from app.ui.dialogs.me2_migration_dialog import ME2MigrationDialog
         dlg = ME2MigrationDialog(merged, me3_path, self._config, parent=self)
         dlg.exec()
+
+    def _check_for_updates(self):
+        self._check_update_btn.setEnabled(False)
+        self._update_status_lbl.setText("Checking…")
+        self._update_status_lbl.setStyleSheet("font-size:11px;color:#8888aa;")
+        self._update_checked.connect(self._on_update_check_done)
+
+        import threading
+
+        def _work():
+            from app.services.update_service import check_for_update
+            result = check_for_update()
+            self._update_checked.emit(result)
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_update_check_done(self, result):
+        self._check_update_btn.setEnabled(True)
+        self._update_checked.disconnect(self._on_update_check_done)
+        if result.get("error"):
+            self._update_status_lbl.setText(f"Error: {result['error']}")
+            self._update_status_lbl.setStyleSheet("font-size:11px;color:#e74c3c;")
+        elif result.get("has_update"):
+            latest = result.get("latest", "?")
+            self._update_status_lbl.setText(f"Update available: v{latest}")
+            self._update_status_lbl.setStyleSheet("font-size:11px;color:#b0d880;font-weight:600;")
+        else:
+            self._update_status_lbl.setText("Up to date")
+            self._update_status_lbl.setStyleSheet("font-size:11px;color:#4a6a2a;font-weight:600;")
 
     def _browse_mods_dir(self):
         path = QFileDialog.getExistingDirectory(

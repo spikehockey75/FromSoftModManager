@@ -43,6 +43,7 @@ cmd = [
     "--hidden-import", "app.services.nexus_service",
     "--hidden-import", "app.services.nexus_sso",
     "--hidden-import", "app.services.steam_service",
+    "--hidden-import", "app.services.update_service",
     "--hidden-import", "py7zr",
     "--hidden-import", "rarfile",
 ]
@@ -73,6 +74,11 @@ if result.returncode == 0:
                 path = os.path.join(root, fname)
                 os.remove(path)
                 print(f"[CLEAN] Removed {path} (user config must not be shipped)")
+
+    # Copy VERSION to dist root so the installer and future upgrades can read it
+    dist_version = os.path.join(DIST_DIR, APP_NAME, "VERSION")
+    shutil.copy2(version_file, dist_version)
+    print(f"[COPY] VERSION → {dist_version}")
 
     exe_path = os.path.join(DIST_DIR, APP_NAME, f"{APP_NAME}.exe")
     if os.path.isfile(exe_path):
