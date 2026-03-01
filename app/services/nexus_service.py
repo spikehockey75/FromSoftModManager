@@ -39,8 +39,29 @@ def parse_nexus_url(url: str) -> "tuple[str, int] | None":
 
 
 class NexusService:
-    def __init__(self, api_key: str = ""):
-        self.api_key = api_key
+    def __init__(self, access_token: str = "", config=None):
+        self.access_token = access_token
+        self._config = config  # ConfigManager for auto-refresh
+
+    def _ensure_token(self):
+        """Refresh the access token if expired. Updates self and config."""
+        if not self._config or not self.access_token:
+            return
+        if not self._config.is_nexus_token_expired():
+            return
+        tokens = self._config.get_nexus_tokens()
+        refresh_token = tokens.get("refresh_token", "")
+        if not refresh_token:
+            return
+        from app.services.nexus_oauth import refresh_access_token
+        new_tokens = refresh_access_token(refresh_token)
+        if "error" in new_tokens:
+            # Token revoked — clear auth so UI shows login button
+            self._config.clear_nexus_auth()
+            self.access_token = ""
+            return
+        self._config.set_nexus_tokens(new_tokens)
+        self.access_token = new_tokens.get("access_token", "")
 
     def _headers(self) -> dict:
         h = {
@@ -49,11 +70,12 @@ class NexusService:
             "User-Agent": f"FromSoftModManager/{APPLICATION_VERSION}",
             "Accept": "application/json",
         }
-        if self.api_key:
-            h["apikey"] = self.api_key
+        if self.access_token:
+            h["Authorization"] = f"Bearer {self.access_token}"
         return h
 
     def _get(self, path: str) -> dict:
+        self._ensure_token()
         url = f"{NEXUS_API_BASE}{path}"
         req = urllib.request.Request(url, headers=self._headers())
         try:
@@ -61,7 +83,7 @@ class NexusService:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
             if e.code == 401:
-                return {"error": "Nexus API key invalid or missing", "requires_auth": True}
+                return {"error": "Nexus authorization invalid or expired", "requires_auth": True}
             elif e.code == 429:
                 return {"error": "Rate limited. Try again later."}
             elif e.code == 404:
@@ -71,7 +93,7 @@ class NexusService:
             return {"error": str(e)}
 
     def validate_user(self) -> dict:
-        """Validate API key and get user info."""
+        """Validate token and get user info."""
         return self._get("/users/validate.json")
 
     def get_mod_info(self, game_domain: str, mod_id: int) -> dict:
@@ -88,6 +110,7 @@ class NexusService:
 
     def get_trending_mods(self, game_domain: str) -> list[dict]:
         """Fetch trending mods for a game domain."""
+        self._ensure_token()
         url = f"{NEXUS_API_BASE}/games/{game_domain}/mods/trending.json"
         req = urllib.request.Request(url, headers=self._headers())
         try:
@@ -234,6 +257,7 @@ class NexusService:
 
     def download_file(self, url: str, dest_path: str, progress_callback=None) -> dict:
         """Download a file from a URL with progress reporting."""
+        self._ensure_token()
         try:
             # Encode any non-ASCII / space characters in the URL path+query while
             # leaving the scheme, host, and already-encoded sequences intact.

@@ -1,4 +1,4 @@
-"""App-level settings dialog — Nexus API key, ME3 path, preferences."""
+"""App-level settings dialog — Nexus account, ME3 path, preferences."""
 
 import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
@@ -35,25 +35,9 @@ class SettingsDialog(QDialog):
         nexus_layout = QFormLayout(nexus_group)
         nexus_layout.setSpacing(10)
 
-        self._nexus_key = QLineEdit()
-        self._nexus_key.setPlaceholderText("Paste your Nexus API key here")
-        self._nexus_key.setEchoMode(QLineEdit.Password)
-        show_btn = QPushButton("Show")
-        show_btn.setFixedWidth(60)
-        show_btn.setCheckable(True)
-        show_btn.toggled.connect(lambda on: self._nexus_key.setEchoMode(
-            QLineEdit.Normal if on else QLineEdit.Password
-        ))
-        key_row = QHBoxLayout()
-        key_row.addWidget(self._nexus_key)
-        key_row.addWidget(show_btn)
-        nexus_layout.addRow("API Key:", key_row)
-
-        nexus_help = QLabel('<a href="https://www.nexusmods.com/users/myaccount?tab=api+access" '
-                           'style="color:#e94560;">Get your API key from Nexus</a>')
-        nexus_help.setOpenExternalLinks(True)
-        nexus_help.setStyleSheet("font-size:11px;")
-        nexus_layout.addRow("", nexus_help)
+        self._nexus_status_lbl = QLabel("Not connected")
+        self._nexus_status_lbl.setStyleSheet("font-size:12px;color:#8888aa;")
+        nexus_layout.addRow("Status:", self._nexus_status_lbl)
 
         self._signout_btn = QPushButton("Sign Out")
         self._signout_btn.setFixedWidth(80)
@@ -152,9 +136,16 @@ class SettingsDialog(QDialog):
         layout.addWidget(btn_box)
 
     def _load(self):
-        key = self._config.get_nexus_api_key()
-        self._nexus_key.setText(key)
-        self._signout_btn.setVisible(bool(key))
+        token = self._config.get_nexus_access_token()
+        user = self._config.get_nexus_user_info()
+        if token and user:
+            name = user.get("name", "Connected")
+            self._nexus_status_lbl.setText(f"Connected as {name}")
+            self._nexus_status_lbl.setStyleSheet("font-size:12px;color:#4ecca3;")
+        else:
+            self._nexus_status_lbl.setText("Not connected")
+            self._nexus_status_lbl.setStyleSheet("font-size:12px;color:#8888aa;")
+        self._signout_btn.setVisible(bool(token))
         self._me3_path.setText(self._config.get_me3_path())
         self._use_me3.setChecked(self._config.get_use_me3())
         self._mods_dir.setText(self._config.get_mods_dir())
@@ -261,14 +252,12 @@ class SettingsDialog(QDialog):
 
     def _sign_out(self):
         self._config.clear_nexus_auth()
-        self._nexus_key.clear()
+        self._nexus_status_lbl.setText("Not connected")
+        self._nexus_status_lbl.setStyleSheet("font-size:12px;color:#8888aa;")
         self._signout_btn.setVisible(False)
         self.settings_saved.emit()
 
     def _save(self):
-        key = self._nexus_key.text().strip()
-        if key:
-            self._config.set_nexus_api_key(key)
         self._config.set_me3_path(self._me3_path.text().strip())
         self._config.set_use_me3(self._use_me3.isChecked())
         mods_dir = self._mods_dir.text().strip()

@@ -69,6 +69,24 @@ class MainWindow(QMainWindow):
         self._load_games()
 
     # ------------------------------------------------------------------
+    # Auto-auth on first launch
+    # ------------------------------------------------------------------
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not getattr(self, "_show_event_fired", False):
+            self._show_event_fired = True
+            QTimer.singleShot(800, self._maybe_auto_auth)
+
+    def _maybe_auto_auth(self):
+        """On first launch, prompt for Nexus auth if not already connected."""
+        if self._config.get_nexus_access_token():
+            return
+        if self._config.get("nexus_auth_prompted"):
+            return
+        self._config.set("nexus_auth_prompted", True)
+        self._sidebar.nexus_widget.prompt_login()
+
+    # ------------------------------------------------------------------
     # Layout construction
     # ------------------------------------------------------------------
     def _build(self):
@@ -602,10 +620,11 @@ class MainWindow(QMainWindow):
 
     def _check_all_mod_updates(self):
         """Fire background update checks for all installed mods across all games."""
-        api_key = self._config.get_nexus_api_key()
-        if not api_key:
+        access_token = self._config.get_nexus_access_token()
+        if not access_token:
             return
         pending = self._pending
+        config = self._config
 
         for game_id, game_info in self._games.items():
             mods = self._config.get_game_mods(game_id)
@@ -620,7 +639,7 @@ class MainWindow(QMainWindow):
                 def _work(game_id=game_id, game_name=gname, mod=dict(mod)):
                     from app.services.nexus_service import NexusService
                     from app.core.mod_updater import version_compare
-                    svc = NexusService(api_key)
+                    svc = NexusService(access_token, config=config)
                     domain = mod.get("nexus_domain", "")
                     nid = mod.get("nexus_mod_id", 0)
                     if not domain or not nid:

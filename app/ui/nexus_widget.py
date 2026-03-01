@@ -2,38 +2,37 @@
 
 import threading
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-                                QPushButton, QDialog, QLineEdit, QDialogButtonBox,
-                                QFrame)
+                                QPushButton, QDialog, QDialogButtonBox)
 from PySide6.QtCore import Qt, Signal, QTimer, QThread, QObject
-from PySide6.QtGui import QPixmap, QCursor, QFont, QIcon, QPainter, QColor
+from PySide6.QtGui import QPixmap, QFont, QPainter, QColor
 from app.config.config_manager import ConfigManager
 from app.services.nexus_service import NexusService
-from app.services.nexus_sso import NexusSSOClient
+from app.services.nexus_oauth import NexusOAuthClient, refresh_access_token
 
 
-class _ValidateWorker(QObject):
+class _RefreshWorker(QObject):
+    """Background worker to refresh an OAuth token."""
     finished = Signal(dict)
 
-    def __init__(self, api_key: str):
+    def __init__(self, refresh_token: str):
         super().__init__()
-        self._key = api_key
+        self._refresh_token = refresh_token
 
     def run(self):
-        svc = NexusService(self._key)
-        result = svc.validate_user()
+        result = refresh_access_token(self._refresh_token)
         self.finished.emit(result)
 
 
-class NexusApiKeyDialog(QDialog):
-    """Dialog for Nexus SSO authorization with manual API key fallback."""
+class NexusAuthDialog(QDialog):
+    """Dialog for Nexus OAuth 2.0 PKCE authorization."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Connect Nexus Account")
         self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
         self.setMinimumWidth(440)
-        self.api_key = ""
-        self._sso_client = None
+        self.tokens = None  # dict with access_token, refresh_token, expires_at, user
+        self._oauth_client = None
         self._poll_timer = None
         self._build()
 
@@ -52,153 +51,94 @@ class NexusApiKeyDialog(QDialog):
         desc.setStyleSheet("color:#8888aa;font-size:11px;")
         layout.addWidget(desc)
 
-        # ── SSO authorize button ──────────────────────────
-        self._sso_btn = QPushButton("  Authorize with Nexus Mods")
-        self._sso_btn.setObjectName("btn_accent")
-        self._sso_btn.setFixedHeight(36)
-        self._sso_btn.setCursor(Qt.PointingHandCursor)
-        self._sso_btn.clicked.connect(self._on_sso_start)
-        layout.addWidget(self._sso_btn)
+        # ── OAuth authorize button ──────────────────────────
+        self._auth_btn = QPushButton("  Authorize with Nexus Mods")
+        self._auth_btn.setObjectName("btn_accent")
+        self._auth_btn.setFixedHeight(36)
+        self._auth_btn.setCursor(Qt.PointingHandCursor)
+        self._auth_btn.clicked.connect(self._on_auth_start)
+        layout.addWidget(self._auth_btn)
 
-        # SSO status label (hidden initially)
-        self._sso_status = QLabel("")
-        self._sso_status.setStyleSheet("color:#8888aa;font-size:11px;")
-        self._sso_status.setWordWrap(True)
-        self._sso_status.setVisible(False)
-        layout.addWidget(self._sso_status)
+        # Status label (hidden initially)
+        self._status_lbl = QLabel("")
+        self._status_lbl.setStyleSheet("color:#8888aa;font-size:11px;")
+        self._status_lbl.setWordWrap(True)
+        self._status_lbl.setVisible(False)
+        layout.addWidget(self._status_lbl)
 
-        # ── Separator ────────────────────────────────────
-        sep_row = QHBoxLayout()
-        line1 = QFrame()
-        line1.setFrameShape(QFrame.HLine)
-        line1.setStyleSheet("color:#2a2a4a;")
-        sep_lbl = QLabel("or")
-        sep_lbl.setStyleSheet("color:#555577;font-size:10px;padding:0 8px;")
-        line2 = QFrame()
-        line2.setFrameShape(QFrame.HLine)
-        line2.setStyleSheet("color:#2a2a4a;")
-        sep_row.addWidget(line1)
-        sep_row.addWidget(sep_lbl)
-        sep_row.addWidget(line2)
-        layout.addLayout(sep_row)
+        # ── Cancel button ──────────────────────────────────
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self._on_cancel)
+        layout.addWidget(cancel_btn)
 
-        # ── Manual API key fallback (collapsed) ──────────
-        self._manual_toggle = QPushButton("Paste API key manually")
-        self._manual_toggle.setFlat(True)
-        self._manual_toggle.setCursor(Qt.PointingHandCursor)
-        self._manual_toggle.setStyleSheet(
-            "QPushButton{color:#8888aa;font-size:11px;text-align:left;"
-            "padding:0;border:none;background:transparent;}"
-            "QPushButton:hover{color:#e0e0ec;}"
+    # ── OAuth PKCE flow ──────────────────────────────────────
+
+    def _on_auth_start(self):
+        """Start the OAuth 2.0 PKCE flow."""
+        self._auth_btn.setText("  Waiting for authorization...")
+        self._auth_btn.setEnabled(False)
+        self._status_lbl.setText(
+            "Your browser has been opened. Approve the request to continue."
         )
-        self._manual_toggle.clicked.connect(self._toggle_manual)
-        layout.addWidget(self._manual_toggle)
+        self._status_lbl.setStyleSheet("color:#8888aa;font-size:11px;")
+        self._status_lbl.setVisible(True)
 
-        self._manual_widget = QWidget()
-        ml = QVBoxLayout(self._manual_widget)
-        ml.setContentsMargins(0, 0, 0, 0)
-        ml.setSpacing(8)
+        self._oauth_client = NexusOAuthClient()
+        self._oauth_client.start()
 
-        self._key_edit = QLineEdit()
-        self._key_edit.setPlaceholderText("Paste your API key from nexusmods.com/users/myaccount")
-        ml.addWidget(self._key_edit)
-
-        open_btn = QPushButton("Open Nexus API key page")
-        open_btn.setFlat(True)
-        open_btn.setCursor(Qt.PointingHandCursor)
-        open_btn.setStyleSheet(
-            "QPushButton{color:#7b8cde;font-size:10px;text-align:left;"
-            "padding:0;border:none;background:transparent;}"
-            "QPushButton:hover{color:#e0e0ec;text-decoration:underline;}"
-        )
-        open_btn.clicked.connect(self._open_nexus)
-        ml.addWidget(open_btn)
-
-        self._manual_widget.setVisible(False)
-        layout.addWidget(self._manual_widget)
-
-        # ── Buttons ──────────────────────────────────────
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        btns.accepted.connect(self._on_ok)
-        btns.rejected.connect(self._on_cancel)
-        layout.addWidget(btns)
-
-    # ── SSO flow ──────────────────────────────────────────
-
-    def _on_sso_start(self):
-        """Start the WebSocket SSO flow."""
-        self._sso_btn.setText("  Waiting for authorization...")
-        self._sso_btn.setEnabled(False)
-        self._sso_status.setText("Approve the request in your browser to continue.")
-        self._sso_status.setStyleSheet("color:#8888aa;font-size:11px;")
-        self._sso_status.setVisible(True)
-
-        self._sso_client = NexusSSOClient()
-        self._sso_client.start()
-
-        self._poll_timer = QTimer(self)
-        self._poll_timer.timeout.connect(self._poll_sso)
-        self._poll_timer.start(500)
-
-    def _poll_sso(self):
-        """Check if SSO has returned a key or error."""
-        if not self._sso_client:
+        # Check for error from server startup
+        _, err = self._oauth_client.poll()
+        if err:
+            self._status_lbl.setText(f"Failed to start: {err}")
+            self._status_lbl.setStyleSheet("color:#e74c3c;font-size:11px;")
+            self._auth_btn.setText("  Authorize with Nexus Mods")
+            self._auth_btn.setEnabled(True)
+            self._oauth_client = None
             return
 
-        key, err = self._sso_client.poll()
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._poll_oauth)
+        self._poll_timer.start(500)
 
-        if key:
-            self._stop_sso()
-            self.api_key = key
+    def _poll_oauth(self):
+        """Check if OAuth has returned tokens or error."""
+        if not self._oauth_client:
+            return
+
+        tokens, err = self._oauth_client.poll()
+
+        if tokens:
+            self._stop_oauth()
+            self.tokens = tokens
             self.accept()
         elif err:
-            self._stop_sso()
-            self._sso_status.setText(f"Authorization failed: {err}")
-            self._sso_status.setStyleSheet("color:#e74c3c;font-size:11px;")
-            self._sso_btn.setText("  Authorize with Nexus Mods")
-            self._sso_btn.setEnabled(True)
+            self._stop_oauth()
+            self._status_lbl.setText(f"Authorization failed: {err}")
+            self._status_lbl.setStyleSheet("color:#e74c3c;font-size:11px;")
+            self._auth_btn.setText("  Authorize with Nexus Mods")
+            self._auth_btn.setEnabled(True)
 
-    def _stop_sso(self):
-        """Clean up SSO client and timer."""
+    def _stop_oauth(self):
+        """Clean up OAuth client and timer."""
         if self._poll_timer:
             self._poll_timer.stop()
             self._poll_timer = None
-        if self._sso_client:
-            self._sso_client.stop()
-            self._sso_client = None
-
-    # ── Manual fallback ──────────────────────────────────
-
-    def _toggle_manual(self):
-        visible = not self._manual_widget.isVisible()
-        self._manual_widget.setVisible(visible)
-        self._manual_toggle.setText(
-            "Hide manual entry" if visible else "Paste API key manually"
-        )
-
-    def _open_nexus(self):
-        import webbrowser
-        webbrowser.open("https://www.nexusmods.com/users/myaccount?tab=api+access")
-
-    def _on_ok(self):
-        key = self._key_edit.text().strip()
-        if key:
-            self._stop_sso()
-            self.api_key = key
-            self.accept()
+        if self._oauth_client:
+            self._oauth_client.stop()
+            self._oauth_client = None
 
     def _on_cancel(self):
-        self._stop_sso()
+        self._stop_oauth()
         self.reject()
 
     def closeEvent(self, event):
-        self._stop_sso()
+        self._stop_oauth()
         super().closeEvent(event)
 
 
 class NexusWidget(QWidget):
     """Top of sidebar — shows login button or logged-in user."""
-    auth_changed = Signal(str)  # emits api_key on change
+    auth_changed = Signal(str)  # emits access_token on change
     _avatar_ready = Signal(bytes)  # internal: avatar image data from bg thread
 
     def __init__(self, config: ConfigManager, parent=None):
@@ -206,9 +146,9 @@ class NexusWidget(QWidget):
         self._config = config
         self._build()
         self._refresh()
-        # Re-validate cached key in background to catch expired/revoked keys
-        if self._config.get_nexus_api_key():
-            QTimer.singleShot(500, self._revalidate_key)
+        # Try to refresh token in background to catch revoked tokens
+        if self._config.get_nexus_access_token():
+            QTimer.singleShot(500, self._revalidate_token)
 
     def _build(self):
         self._avatar_ready.connect(self._on_avatar_ready)
@@ -232,6 +172,20 @@ class NexusWidget(QWidget):
         self._login_btn.clicked.connect(self._on_login)
         ll.addWidget(self._login_btn)
 
+        info_lbl = QLabel(
+            "Sign in to enable update checking,\n"
+            "trending mods, and Nexus downloads."
+        )
+        info_lbl.setWordWrap(True)
+        info_lbl.setStyleSheet(
+            "font-size:10px;"
+            "color:#8888aa;"
+            "background:rgba(42,42,74,0.5);"
+            "border-radius:4px;"
+            "padding:6px 8px;"
+        )
+        ll.addWidget(info_lbl)
+
         self._layout.addWidget(self._login_widget)
 
         # Logged in state
@@ -254,7 +208,7 @@ class NexusWidget(QWidget):
         user_info.setSpacing(1)
         self._name_lbl = QLabel("User")
         self._name_lbl.setStyleSheet("font-size:12px;font-weight:700;color:#e0e0ec;")
-        self._status_lbl = QLabel("Premium" )
+        self._status_lbl = QLabel("Premium")
         self._status_lbl.setStyleSheet("font-size:10px;color:#4ecca3;")
         user_info.addWidget(self._name_lbl)
         user_info.addWidget(self._status_lbl)
@@ -275,9 +229,9 @@ class NexusWidget(QWidget):
         self._avatar_lbl.setPixmap(px)
 
     def _refresh(self):
-        key = self._config.get_nexus_api_key()
+        token = self._config.get_nexus_access_token()
         user = self._config.get_nexus_user_info()
-        logged_in = bool(key and user)
+        logged_in = bool(token and user)
 
         self._login_widget.setVisible(not logged_in)
         self._user_widget.setVisible(logged_in)
@@ -321,7 +275,7 @@ class NexusWidget(QWidget):
                 y = (scaled.height() - 32) // 2
                 scaled = scaled.copy(x, y, 32, 32)
             # Apply circular mask
-            from PySide6.QtGui import QPainterPath, QBrush
+            from PySide6.QtGui import QPainterPath
             circle = QPixmap(32, 32)
             circle.fill(QColor("transparent"))
             p = QPainter(circle)
@@ -333,25 +287,65 @@ class NexusWidget(QWidget):
             p.end()
             self._avatar_lbl.setPixmap(circle)
 
-    def _revalidate_key(self):
-        """Background check that the stored API key is still valid."""
-        key = self._config.get_nexus_api_key()
-        if not key:
+    def _revalidate_token(self):
+        """Background check that the stored token is still valid."""
+        tokens = self._config.get_nexus_tokens()
+        refresh_token = tokens.get("refresh_token", "")
+        if not refresh_token:
             return
-        self._thread = QThread()
-        self._worker = _ValidateWorker(key)
-        self._worker.moveToThread(self._thread)
-        self._thread.started.connect(self._worker.run)
-        self._worker.finished.connect(self._on_revalidated)
-        self._worker.finished.connect(self._thread.quit)
-        self._thread.start()
+        # If token is not expired, just validate via API
+        if not self._config.is_nexus_token_expired():
+            token = tokens.get("access_token", "")
+            self._thread = QThread()
+            self._worker = _ValidateWorker(token, self._config)
+            self._worker.moveToThread(self._thread)
+            self._thread.started.connect(self._worker.run)
+            self._worker.finished.connect(self._on_revalidated)
+            self._worker.finished.connect(self._thread.quit)
+            self._thread.start()
+        else:
+            # Token expired — try refresh
+            self._thread = QThread()
+            self._worker = _RefreshWorker(refresh_token)
+            self._worker.moveToThread(self._thread)
+            self._thread.started.connect(self._worker.run)
+            self._worker.finished.connect(self._on_token_refreshed)
+            self._worker.finished.connect(self._thread.quit)
+            self._thread.start()
 
-    def _on_revalidated(self, result: dict):
+    def _on_token_refreshed(self, result: dict):
         if "error" in result:
-            print(f"[NEXUS] Stored API key is invalid, clearing auth", flush=True)
+            print("[NEXUS] Token refresh failed, clearing auth", flush=True)
             self._config.clear_nexus_auth()
             self._refresh()
             self.auth_changed.emit("")
+        else:
+            self._config.set_nexus_tokens(result)
+            # Update user info from JWT
+            from app.services.nexus_oauth import extract_user_info
+            user_info = extract_user_info(result.get("access_token", ""))
+            if user_info.get("name"):
+                self._config.set_nexus_user_info(user_info)
+            self._refresh()
+
+    def _on_revalidated(self, result: dict):
+        if "error" in result:
+            # Token might be expired — try refresh before giving up
+            tokens = self._config.get_nexus_tokens()
+            refresh_token = tokens.get("refresh_token", "")
+            if refresh_token:
+                self._thread = QThread()
+                self._worker = _RefreshWorker(refresh_token)
+                self._worker.moveToThread(self._thread)
+                self._thread.started.connect(self._worker.run)
+                self._worker.finished.connect(self._on_token_refreshed)
+                self._worker.finished.connect(self._thread.quit)
+                self._thread.start()
+            else:
+                print("[NEXUS] Stored token is invalid, clearing auth", flush=True)
+                self._config.clear_nexus_auth()
+                self._refresh()
+                self.auth_changed.emit("")
         else:
             # Update cached user info in case it changed
             self._config.set_nexus_user_info({
@@ -362,44 +356,41 @@ class NexusWidget(QWidget):
             })
             self._refresh()
 
+    def prompt_login(self):
+        """Programmatically open the auth dialog (used for auto-auth on first launch)."""
+        if not self._config.get_nexus_access_token():
+            self._on_login()
+
     def _on_login(self):
-        dlg = NexusApiKeyDialog(self)
-        if dlg.exec() == QDialog.Accepted and dlg.api_key:
-            self._validate_and_save(dlg.api_key)
+        dlg = NexusAuthDialog(self)
+        if dlg.exec() == QDialog.Accepted and dlg.tokens:
+            self._save_tokens(dlg.tokens)
 
-    def _validate_and_save(self, api_key: str):
-        self._login_btn.setText("Validating...")
-        self._login_btn.setEnabled(False)
-
-        self._thread = QThread()
-        self._worker = _ValidateWorker(api_key)
-        self._worker.moveToThread(self._thread)
-        self._thread.started.connect(self._worker.run)
-        self._worker.finished.connect(self._on_validated)
-        self._worker.finished.connect(self._thread.quit)
-        self._thread.start()
-        self._pending_key = api_key
-
-    def _on_validated(self, result: dict):
-        self._login_btn.setText("Connect Account")
-        self._login_btn.setEnabled(True)
-
-        if "error" in result:
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "Nexus Auth", f"Failed to validate key:\n{result['error']}")
-            return
-
-        self._config.set_nexus_api_key(self._pending_key)
-        self._config.set_nexus_user_info({
-            "name": result.get("name", ""),
-            "is_premium": result.get("is_premium", False),
-            "is_supporter": result.get("is_supporter", False),
-            "profile_url": result.get("profile_url", ""),
-        })
+    def _save_tokens(self, tokens: dict):
+        """Store OAuth tokens and user info, update UI."""
+        self._config.set_nexus_tokens(tokens)
+        user_info = tokens.get("user", {})
+        if user_info:
+            self._config.set_nexus_user_info(user_info)
         self._refresh()
-        self.auth_changed.emit(self._pending_key)
+        self.auth_changed.emit(tokens.get("access_token", ""))
 
     def _on_logout(self):
         self._config.clear_nexus_auth()
         self._refresh()
         self.auth_changed.emit("")
+
+
+class _ValidateWorker(QObject):
+    """Background worker to validate a token via the Nexus API."""
+    finished = Signal(dict)
+
+    def __init__(self, access_token: str, config=None):
+        super().__init__()
+        self._token = access_token
+        self._config = config
+
+    def run(self):
+        svc = NexusService(self._token, config=self._config)
+        result = svc.validate_user()
+        self.finished.emit(result)
