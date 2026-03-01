@@ -172,6 +172,20 @@ class NexusWidget(QWidget):
         self._login_btn.clicked.connect(self._on_login)
         ll.addWidget(self._login_btn)
 
+        info_lbl = QLabel(
+            "Sign in to enable update checking,\n"
+            "trending mods, and Nexus downloads."
+        )
+        info_lbl.setWordWrap(True)
+        info_lbl.setStyleSheet(
+            "font-size:10px;"
+            "color:#8888aa;"
+            "background:rgba(42,42,74,0.5);"
+            "border-radius:4px;"
+            "padding:6px 8px;"
+        )
+        ll.addWidget(info_lbl)
+
         self._layout.addWidget(self._login_widget)
 
         # Logged in state
@@ -341,6 +355,11 @@ class NexusWidget(QWidget):
                 "profile_url": result.get("profile_url", ""),
             })
             self._refresh()
+
+    def prompt_login(self):
+        """Programmatically open the auth dialog (used for auto-auth on first launch)."""
+        if not self._config.get_nexus_access_token():
+            self._on_login()
 
     def _on_login(self):
         dlg = NexusAuthDialog(self)

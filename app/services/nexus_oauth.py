@@ -295,7 +295,10 @@ class NexusOAuthClient:
         self._done.set()
         if self._server:
             try:
-                self._server.shutdown()
+                # Close the socket so handle_request() unblocks immediately.
+                # Do NOT call shutdown() — it deadlocks when handle_request()
+                # is blocking in the serve thread.
+                self._server.server_close()
             except Exception:
                 pass
             self._server = None
@@ -307,7 +310,11 @@ class NexusOAuthClient:
             return
 
         while not self._done.is_set():
-            server.handle_request()
+            try:
+                server.handle_request()
+            except Exception:
+                # Socket closed by stop() — exit cleanly
+                break
 
             if server.oauth_error:
                 self._error = server.oauth_error
@@ -329,9 +336,3 @@ class NexusOAuthClient:
                     self._tokens = tokens
                 self._done.set()
                 break
-
-        # Shut down the server
-        try:
-            server.server_close()
-        except Exception:
-            pass

@@ -69,6 +69,24 @@ class MainWindow(QMainWindow):
         self._load_games()
 
     # ------------------------------------------------------------------
+    # Auto-auth on first launch
+    # ------------------------------------------------------------------
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not getattr(self, "_show_event_fired", False):
+            self._show_event_fired = True
+            QTimer.singleShot(800, self._maybe_auto_auth)
+
+    def _maybe_auto_auth(self):
+        """On first launch, prompt for Nexus auth if not already connected."""
+        if self._config.get_nexus_access_token():
+            return
+        if self._config.get("nexus_auth_prompted"):
+            return
+        self._config.set("nexus_auth_prompted", True)
+        self._sidebar.nexus_widget.prompt_login()
+
+    # ------------------------------------------------------------------
     # Layout construction
     # ------------------------------------------------------------------
     def _build(self):
