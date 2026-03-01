@@ -672,7 +672,7 @@ class ModsTab(QWidget):
     # Update checks
     # ------------------------------------------------------------------
     def _start_update_checks(self):
-        api_key = self._config.get_nexus_api_key()
+        api_key = self._config.get_nexus_access_token()
         for mod_id, card in self._cards.items():
             if card.is_virtual:
                 continue
@@ -688,14 +688,15 @@ class ModsTab(QWidget):
             self._spawn_update_check(mod)
 
     def _spawn_update_check(self, mod: dict):
-        api_key = self._config.get_nexus_api_key()
+        api_key = self._config.get_nexus_access_token()
+        config = self._config
         pending = self._pending
         mod_id = mod["id"]
         version_dir = self._get_mod_version_dir(mod_id)
 
         def _work():
             from app.core.mod_updater import version_compare
-            svc = NexusService(api_key)
+            svc = NexusService(api_key, config=config)
             domain = mod.get("nexus_domain", "")
             nid = mod.get("nexus_mod_id", 0)
             # Use the Nexus mod-page version as single source of truth
@@ -720,16 +721,17 @@ class ModsTab(QWidget):
     # Trending mods
     # ------------------------------------------------------------------
     def _start_trending_fetch(self):
-        api_key = self._config.get_nexus_api_key()
+        api_key = self._config.get_nexus_access_token()
         if not api_key or self._trending_loaded:
             return
         nexus_domain = self._gdef.get("nexus_domain", "")
         if not nexus_domain:
             return
+        config = self._config
         pending = self._pending
 
         def _work():
-            svc = NexusService(api_key)
+            svc = NexusService(api_key, config=config)
             mods = svc.get_trending_mods(nexus_domain)
             # Fetch game categories to identify utility/tool categories
             cats = svc.get_game_categories(nexus_domain)
@@ -883,18 +885,20 @@ class ModsTab(QWidget):
         if not card:
             return
         mod = card.mod
-        api_key = self._config.get_nexus_api_key()
+        api_key = self._config.get_nexus_access_token()
 
         if mod.get("nexus_mod_id") and api_key:
             # Download from Nexus
             self._run_nexus_install(mod_id, mod)
         elif mod.get("nexus_mod_id") and not api_key:
-            # Mod has Nexus info but no API key — open SSO dialog
-            from app.ui.nexus_widget import NexusApiKeyDialog
-            dlg = NexusApiKeyDialog(parent=self)
-            if dlg.exec() == QDialog.Accepted and dlg.api_key:
-                self._config.set_nexus_api_key(dlg.api_key)
-                self._validate_and_save_nexus_key(dlg.api_key)
+            # Mod has Nexus info but no token — open OAuth dialog
+            from app.ui.nexus_widget import NexusAuthDialog
+            dlg = NexusAuthDialog(parent=self)
+            if dlg.exec() == QDialog.Accepted and dlg.tokens:
+                self._config.set_nexus_tokens(dlg.tokens)
+                user_info = dlg.tokens.get("user", {})
+                if user_info:
+                    self._config.set_nexus_user_info(user_info)
                 self._run_nexus_install(mod_id, mod)
         else:
             # No Nexus info — fall back to zip browser
@@ -927,7 +931,7 @@ class ModsTab(QWidget):
         fake_gdef["nexus_mod_id"] = mod.get("nexus_mod_id", 0)
 
         def _work():
-            svc = NexusService(config.get_nexus_api_key())
+            svc = NexusService(config.get_nexus_access_token(), config=config)
 
             def _cb(pct, msg):
                 pending.put(("install_progress", mod_id, pct, msg))
@@ -996,12 +1000,13 @@ class ModsTab(QWidget):
 
         threading.Thread(target=_work, daemon=True).start()
 
-    def _validate_and_save_nexus_key(self, api_key: str):
-        """Validate a newly-obtained API key and save user info in background."""
+    def _validate_and_save_nexus_key(self, token: str):
+        """Validate a newly-obtained token and save user info in background."""
         pending = self._pending
+        config = self._config
 
         def _work():
-            svc = NexusService(api_key)
+            svc = NexusService(token, config=config)
             result = svc.validate_user()
             if "error" not in result:
                 pending.put(("nexus_validated", result))
@@ -1040,7 +1045,7 @@ class ModsTab(QWidget):
 
             self.log_message.emit(f"Installed {mod_dict.get('name', mod_id)}", "success")
             self.mod_installed.emit()
-            if mod_dict.get("nexus_mod_id") and self._config.get_nexus_api_key():
+            if mod_dict.get("nexus_mod_id") and self._config.get_nexus_access_token():
                 self._spawn_update_check(mod_dict)
         else:
             if result.get("requires_premium"):
@@ -1107,9 +1112,9 @@ class ModsTab(QWidget):
         if not card:
             return
         mod = card.mod
-        api_key = self._config.get_nexus_api_key()
+        api_key = self._config.get_nexus_access_token()
         if not api_key:
-            self.log_message.emit("No Nexus API key — cannot auto-update", "error")
+            self.log_message.emit("Not connected to Nexus — cannot auto-update", "error")
             return
 
         gdef = self._gdef
@@ -1141,7 +1146,7 @@ class ModsTab(QWidget):
         def _work():
             from app.core.mod_installer import _merge_ini_settings
 
-            svc = NexusService(api_key)
+            svc = NexusService(api_key, config=config)
             temp_dir = os.path.join(config.get_mods_dir(), "_tmp")
 
             def _cb(pct, msg):
@@ -1344,7 +1349,7 @@ class ModsTab(QWidget):
                 )
 
         # Check for updates on the newly installed mod
-        if mod_dict.get("nexus_mod_id") and self._config.get_nexus_api_key():
+        if mod_dict.get("nexus_mod_id") and self._config.get_nexus_access_token():
             self._spawn_update_check(mod_dict)
 
     # ------------------------------------------------------------------

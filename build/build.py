@@ -41,7 +41,7 @@ cmd = [
     "--hidden-import", "app.core.mod_updater",
     "--hidden-import", "app.core.me3_service",
     "--hidden-import", "app.services.nexus_service",
-    "--hidden-import", "app.services.nexus_sso",
+    "--hidden-import", "app.services.nexus_oauth",
     "--hidden-import", "app.services.steam_service",
     "--hidden-import", "app.services.update_service",
     "--hidden-import", "py7zr",

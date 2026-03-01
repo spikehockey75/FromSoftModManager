@@ -189,14 +189,14 @@ class AddModDialog(QDialog):
             self._error_lbl.setVisible(True)
             return
 
-        api_key = self._config.get_nexus_api_key()
-        if not api_key:
+        access_token = self._config.get_nexus_access_token()
+        if not access_token:
             self._error_lbl.setText("Connect your Nexus account first to download mods.")
             self._error_lbl.setVisible(True)
             return
 
         nexus_domain, nexus_mod_id = parsed
-        self._start_nexus_install(api_key, nexus_domain, nexus_mod_id)
+        self._start_nexus_install(access_token, nexus_domain, nexus_mod_id)
 
     # ── Shared: lock UI + start poll timer ──────────────────
 
@@ -291,7 +291,7 @@ class AddModDialog(QDialog):
 
     # ── Nexus install flow ──────────────────────────────────
 
-    def _start_nexus_install(self, api_key: str, domain: str, nexus_mod_id: int):
+    def _start_nexus_install(self, access_token: str, domain: str, nexus_mod_id: int):
         from app.core.me3_service import slugify, ME3_GAME_MAP
         slug = slugify(f"{domain}-{nexus_mod_id}")
         self._enter_installing(f"Fetching mod info...")
@@ -307,7 +307,7 @@ class AddModDialog(QDialog):
             from app.services.nexus_service import NexusService
             from app.core.mod_installer import install_mod_from_zip
 
-            svc = NexusService(api_key)
+            svc = NexusService(access_token, config=config)
 
             # 1. Fetch mod info for the name
             q.put(("progress", 2, "Fetching mod info from Nexus..."))

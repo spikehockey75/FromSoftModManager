@@ -602,10 +602,11 @@ class MainWindow(QMainWindow):
 
     def _check_all_mod_updates(self):
         """Fire background update checks for all installed mods across all games."""
-        api_key = self._config.get_nexus_api_key()
-        if not api_key:
+        access_token = self._config.get_nexus_access_token()
+        if not access_token:
             return
         pending = self._pending
+        config = self._config
 
         for game_id, game_info in self._games.items():
             mods = self._config.get_game_mods(game_id)
@@ -620,7 +621,7 @@ class MainWindow(QMainWindow):
                 def _work(game_id=game_id, game_name=gname, mod=dict(mod)):
                     from app.services.nexus_service import NexusService
                     from app.core.mod_updater import version_compare
-                    svc = NexusService(api_key)
+                    svc = NexusService(access_token, config=config)
                     domain = mod.get("nexus_domain", "")
                     nid = mod.get("nexus_mod_id", 0)
                     if not domain or not nid:

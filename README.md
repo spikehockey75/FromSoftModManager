@@ -1,8 +1,6 @@
 # FromSoft Mod Manager
 
-A native Windows desktop app for managing mods across FromSoftware
-games. Install mods from Nexus, configure settings, manage saves,
-and launch games with Mod Engine 3 — all from a single app.
+Skip the manual mod setup headaches — FromSoft Mod Manager automatically finds your Steam games, installs co-op mods from Nexus with one click, and keeps everything up to date. Connect your Nexus account, pick your game, and you're playing co-op in minutes. Saves, settings, and mod loading through Mod Engine 3 are all handled for you.
 
 > **Note:** This is a **manager tool only**. The Seamless Co-op mods
 > are created by [LukeYui](https://github.com/LukeYui). All credit
@@ -62,9 +60,9 @@ folders across all drives.
 
 ### Nexus Mods Integration
 
-- **SSO authentication** — click "Authorize with Nexus Mods",
+- **OAuth 2.0 authentication** — click "Authorize with Nexus Mods",
   approve in browser, done (no copy-paste needed)
-- Manual API key fallback for users who prefer it
+- Automatic token refresh — stays connected across sessions
 - User profile display in sidebar
 - Trending and recommended mods per game
 - Direct download with Nexus Premium support
@@ -176,8 +174,8 @@ The installer:
 
 1. Click **Connect Account** in the sidebar
 2. Click **Authorize with Nexus Mods** — your browser opens
-3. Click "Authorize" on the Nexus page — the app receives your
-   API key automatically
+3. Click "Authorize" on the Nexus page — the app connects
+   automatically
 4. Your Nexus username appears in the sidebar
 
 ### Managing Mods
@@ -223,13 +221,13 @@ fromsoft_coop_manager/
 │   │   └── save_manager.py      Save file operations
 │   ├── services/
 │   │   ├── nexus_service.py     Nexus Mods REST API client
-│   │   ├── nexus_sso.py         Nexus SSO WebSocket auth flow
+│   │   ├── nexus_oauth.py       Nexus OAuth 2.0 PKCE auth flow
 │   │   └── steam_service.py     Steam player count and asset APIs
 │   └── ui/
 │       ├── main_window.py       Main window with sidebar + content
 │       ├── sidebar.py           Game list, player counts, Nexus
 │       ├── game_page.py         Per-game tab container
-│       ├── nexus_widget.py      Nexus auth widget (SSO + manual)
+│       ├── nexus_widget.py      Nexus auth widget (OAuth 2.0)
 │       ├── terminal_widget.py   Log output panel
 │       ├── tabs/
 │       │   ├── launch_tab.py    Game launcher with cover art
@@ -265,7 +263,6 @@ fromsoft_coop_manager/
 | `PySide6`              | Qt 6 UI framework                                  |
 | `requests`             | HTTP client for API calls                          |
 | `tomlkit` / `tomli-w`  | TOML reading/writing for ME3 profiles              |
-| `websocket-client`     | Nexus SSO WebSocket authentication                 |
 | `py7zr`                | 7z archive extraction                              |
 | `rarfile`              | RAR archive extraction (requires WinRAR or 7-Zip)  |
 | `pyinstaller`          | Build tooling (dev only)                           |
@@ -313,7 +310,7 @@ to `ME3_GAME_MAP` in `app/core/me3_service.py`.
 | ---------------- | ---------------------------------------------------------- |
 | **UI Framework** | PySide6 (Qt 6) with Fusion base style                      |
 | **Mod Loader**   | Mod Engine 3 CLI (`me3 launch -g <game>`)                  |
-| **Nexus Auth**   | WebSocket SSO via `wss://sso.nexusmods.com`                |
+| **Nexus Auth**   | OAuth 2.0 PKCE with automatic token refresh                |
 | **Packaging**    | PyInstaller (onedir) then Inno Setup installer             |
 | **Config**       | JSON config file (`config.json`)                           |
 | **Theme**        | Custom QSS dark theme (#0e0e18 bg, #e94560 accent)         |

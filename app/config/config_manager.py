@@ -5,6 +5,7 @@ Configuration manager — handles app-level config (config.json) and QSettings.
 import os
 import sys
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -26,6 +27,7 @@ class ConfigManager:
     def __init__(self):
         self._migrate_legacy_config()
         self._config = self._load()
+        self._migrate_nexus_api_key()
 
     # ------------------------------------------------------------------
     # Migration
@@ -97,14 +99,41 @@ class ConfigManager:
         return self._config.get("last_scan")
 
     # ------------------------------------------------------------------
-    # Nexus
+    # Nexus OAuth
     # ------------------------------------------------------------------
-    def get_nexus_api_key(self) -> str:
-        return self._config.get("nexus_api_key", "")
+    def _migrate_nexus_api_key(self):
+        """Remove legacy API key auth — users must re-authorize via OAuth."""
+        if "nexus_api_key" in self._config:
+            self._config.pop("nexus_api_key", None)
+            self._config.pop("nexus_user", None)
+            self.save()
 
-    def set_nexus_api_key(self, key: str):
-        self._config["nexus_api_key"] = key
+    def get_nexus_tokens(self) -> dict:
+        """Return stored OAuth tokens or empty dict.
+
+        Keys: access_token, refresh_token, expires_at
+        """
+        return self._config.get("nexus_tokens", {})
+
+    def get_nexus_access_token(self) -> str:
+        """Convenience: return the current access token, or empty string."""
+        return self.get_nexus_tokens().get("access_token", "")
+
+    def set_nexus_tokens(self, tokens: dict):
+        """Store OAuth tokens (access_token, refresh_token, expires_at)."""
+        self._config["nexus_tokens"] = {
+            "access_token": tokens.get("access_token", ""),
+            "refresh_token": tokens.get("refresh_token", ""),
+            "expires_at": tokens.get("expires_at", 0),
+        }
         self.save()
+
+    def is_nexus_token_expired(self) -> bool:
+        """Check if the stored access token has expired."""
+        tokens = self.get_nexus_tokens()
+        if not tokens.get("access_token"):
+            return True
+        return time.time() >= tokens.get("expires_at", 0)
 
     def get_nexus_user_info(self) -> dict:
         return self._config.get("nexus_user", {})
@@ -114,7 +143,7 @@ class ConfigManager:
         self.save()
 
     def clear_nexus_auth(self):
-        self._config.pop("nexus_api_key", None)
+        self._config.pop("nexus_tokens", None)
         self._config.pop("nexus_user", None)
         self.save()
 
